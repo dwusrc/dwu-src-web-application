@@ -53,15 +53,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
   // Fetch user profile from database
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId);
-
-      if (error) {
-        // Optionally, you can show a user-facing error here
-        return null;
-      }
 
       if (Array.isArray(data) && data.length > 0) {
         return data[0] as UserProfile;

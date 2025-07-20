@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { PageLayout } from "../components";
 
 export default function LoginPage() {
@@ -10,7 +9,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -99,7 +97,7 @@ export default function LoginPage() {
               </button>
             </form>
             <div className="mt-6 text-center">
-              <span className="text-gray-700">Don't have an account? </span>
+              <span className="text-gray-700">Don&apos;t have an account? </span>
               <Link href="/signup" className="text-[#359d49] font-semibold hover:underline">Sign up</Link>
             </div>
           </div>

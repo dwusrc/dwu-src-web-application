@@ -17,7 +17,7 @@ export function ProtectedRoute({
   fallback,
   redirectTo = '/login'
 }: ProtectedRouteProps) {
-  const { user, profile, loading } = useSession();
+  const { profile, loading } = useSession();
   const { isAuthenticated } = useIsAuthenticated();
   const router = useRouter();
 

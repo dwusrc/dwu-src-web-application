@@ -3,6 +3,7 @@
 import { AuthenticatedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { useSession } from '@/app/contexts/session-context';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   return (
@@ -155,12 +156,12 @@ function DashboardContent() {
             >
               Protected Routes Test
             </a>
-            <a
+            <Link
               href="/"
               className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors"
             >
               Home Page
-            </a>
+            </Link>
           </div>
         </div>
       </div>
