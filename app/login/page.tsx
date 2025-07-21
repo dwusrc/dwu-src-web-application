@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageLayout } from "../components";
-import { useSession } from "../contexts/session-context";
+// import { useSession } from "../contexts/session-context";
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const { refreshProfile, profile } = useSession();
+  // const { refreshProfile, profile } = useSession();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });

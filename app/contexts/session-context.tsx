@@ -57,7 +57,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       }
 
       return null;
-    } catch (error) {
+    } catch {
       // Optionally, you can show a user-facing error here
       return null;
     }

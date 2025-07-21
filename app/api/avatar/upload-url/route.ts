@@ -38,13 +38,9 @@ export async function POST(request: Request) {
 
     const fileExtension = fileType.split('/')[1];
     const fileName = `${user.id}/${uuidv4()}.${fileExtension}`;
-    const { data, error } = await supabase.storage
+    const { data } = await supabase.storage
       .from('avatars')
       .createSignedUploadUrl(fileName);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
 
     // The 'path' property in the response contains the key to the file in the bucket
     return NextResponse.json({ ...data, path: fileName });

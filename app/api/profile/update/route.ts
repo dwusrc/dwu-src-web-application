@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   }
 
   // 3. Update the user's profile in the database
-  const { data, error, count } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .update({ 
       full_name, 
@@ -47,14 +47,13 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
      })
     .eq('id', user.id)
-    .select('*', { count: 'exact' });
+    .select('*');
 
   // Debug logging
   console.log({
     message: 'Profile update result',
     data,
     error,
-    count,
     userId: user.id
   });
 

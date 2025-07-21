@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { AuthenticatedRoute } from '@/app/components/auth/protected-route';
 import { useSession } from '@/app/contexts/session-context';
-import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 
 // Define the structure for the form state
@@ -85,8 +84,12 @@ function ProfilePageContent() {
       await refreshProfile();
       setIsEditing(false);
 
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
+        setMessage({ type: 'error', text: 'An unknown error occurred.' });
+      }
     }
   };
   
@@ -140,9 +143,13 @@ function ProfilePageContent() {
       setMessage({ type: 'success', text: 'Avatar updated successfully!' });
       await refreshProfile();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Avatar upload process failed:', error);
-      setMessage({ type: 'error', text: error.message });
+      if (error instanceof Error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
+        setMessage({ type: 'error', text: 'An unknown error occurred.' });
+      }
     }
   };
 
@@ -169,6 +176,7 @@ function ProfilePageContent() {
           {/* Left Column: Avatar */}
           <div className="md:col-span-1 flex flex-col items-center">
             <div className="relative w-40 h-40 mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={avatarSrc || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.full_name}`}
                 alt="Avatar"
