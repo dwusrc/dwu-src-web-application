@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       user: data.user,
-      session: data.session 
+      session: data.session,
+      role: data.user?.user_metadata?.role || null
     });
 
   } catch (error) {

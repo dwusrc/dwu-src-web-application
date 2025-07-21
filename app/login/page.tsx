@@ -33,14 +33,11 @@ export default function LoginPage() {
       
       if (data.success) {
         setSuccess(true);
-        // Refresh profile to get the latest role
-        await refreshProfile();
-        // Wait a moment for profile to update
         setTimeout(() => {
           let redirectUrl = "/dashboard";
-          if (profile?.role === "student") redirectUrl = "/dashboard/student";
-          else if (profile?.role === "src") redirectUrl = "/dashboard/src";
-          else if (profile?.role === "admin") redirectUrl = "/dashboard/admin";
+          if (data.role === "student") redirectUrl = "/dashboard/student";
+          else if (data.role === "src") redirectUrl = "/dashboard/src";
+          else if (data.role === "admin") redirectUrl = "/dashboard/admin";
           window.location.href = redirectUrl;
         }, 1000);
       } else {

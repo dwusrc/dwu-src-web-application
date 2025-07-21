@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 // Create an admin client using the service role key (never expose to client)
 const supabaseAdmin = createClient(
@@ -16,6 +17,20 @@ export async function POST(req: NextRequest) {
   if (!full_name || !email || !password || !student_id || !department || !year_level) {
     return Response.json({ error: 'Missing required fields.' }, { status: 400 });
   }
+
+  // Use server-side supabase client for auth
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name) { return cookieStore.get(name)?.value; },
+        set(name, value, options) { cookieStore.set({ name, value, ...options }); },
+        remove(name, options) { cookieStore.set({ name, value: '', ...options }); },
+      },
+    }
+  );
 
   // 1. Create user in Supabase Auth
   const { data: authData, error: authError } = await supabase.auth.signUp({

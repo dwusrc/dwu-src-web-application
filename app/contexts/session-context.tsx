@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/lib/supabaseClient';
 
 // User profile interface matching our database schema
 interface UserProfile {
@@ -32,12 +32,6 @@ interface SessionContextType {
 
 // Create context
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
-
-// Create Supabase client
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // Provider component
 interface SessionProviderProps {
