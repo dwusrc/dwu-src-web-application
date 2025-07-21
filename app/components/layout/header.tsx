@@ -17,9 +17,14 @@ export function Header({ className }: HeaderProps) {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut();
-    setShowUserMenu(false);
-    router.push('/');
+    try {
+      await signOut();
+      setShowUserMenu(false);
+      window.location.href = '/'; // Force full reload
+    } catch (error) {
+      setShowUserMenu(false);
+      window.location.href = '/';
+    }
   };
 
   return (
@@ -115,7 +120,7 @@ export function Header({ className }: HeaderProps) {
 
                 <button
                   onClick={handleSignOut}
-                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
                 >
                   Sign Out
                 </button>
