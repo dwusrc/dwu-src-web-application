@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useSession, useIsAuthenticated } from '@/app/contexts/session-context';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface HeaderProps {
   className?: string;
@@ -13,10 +14,12 @@ export function Header({ className }: HeaderProps) {
   const { user, profile, signOut } = useSession();
   const { isAuthenticated } = useIsAuthenticated();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const router = useRouter();
 
   const handleSignOut = async () => {
     await signOut();
     setShowUserMenu(false);
+    router.push('/');
   };
 
   return (
