@@ -6,7 +6,7 @@ import { useSession, useIsAuthenticated } from '@/app/contexts/session-context';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'student' | 'src_member' | 'admin';
+  requiredRole?: 'student' | 'src' | 'admin';
   fallback?: React.ReactNode;
   redirectTo?: string;
 }
@@ -30,13 +30,29 @@ export function ProtectedRoute({
       }
 
       // If role is required, check if user has the required role
-      if (requiredRole && profile?.role !== requiredRole) {
-        // Redirect to /dashboard for all roles (quick fix)
-        router.push('/dashboard');
-        return;
+      if (requiredRole) {
+        let hasAccess = false;
+        // Admins can access everything
+        if (profile?.role === 'admin') {
+          hasAccess = true;
+        } 
+        // SRC members can access SRC and Student dashboards
+        else if (profile?.role === 'src' && (requiredRole === 'src' || requiredRole === 'student')) {
+          hasAccess = true;
+        }
+        // Students can only access the student dashboard
+        else if (profile?.role === requiredRole) {
+          hasAccess = true;
+        }
+
+        if (!hasAccess) {
+          // If user does not have access, redirect them to their own dashboard
+          router.push(`/dashboard`);
+          return;
+        }
       }
     }
-  }, [isAuthenticated, profile?.role, requiredRole, loading, router, redirectTo]);
+  }, [isAuthenticated, profile, requiredRole, loading, router, redirectTo]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -56,9 +72,21 @@ export function ProtectedRoute({
   }
 
   // Show children if authenticated and has required role
-  if (isAuthenticated && (!requiredRole || profile?.role === requiredRole || 
-      (profile?.role === 'admin' && requiredRole !== 'admin'))) {
-    return <>{children}</>;
+  if (isAuthenticated) {
+    let hasAccess = false;
+    if (!requiredRole) {
+      hasAccess = true; // No specific role required
+    } else if (profile?.role === 'admin') {
+      hasAccess = true;
+    } else if (profile?.role === 'src' && (requiredRole === 'src' || requiredRole === 'student')) {
+      hasAccess = true;
+    } else if (profile?.role === requiredRole) {
+      hasAccess = true;
+    }
+
+    if (hasAccess) {
+      return <>{children}</>;
+    }
   }
 
   // Show loading while redirecting
@@ -83,7 +111,7 @@ export function StudentRoute({ children, fallback, redirectTo }: Omit<ProtectedR
 
 export function SRCMemberRoute({ children, fallback, redirectTo }: Omit<ProtectedRouteProps, 'requiredRole'>) {
   return (
-    <ProtectedRoute requiredRole="src_member" fallback={fallback} redirectTo={redirectTo}>
+    <ProtectedRoute requiredRole="src" fallback={fallback} redirectTo={redirectTo}>
       {children}
     </ProtectedRoute>
   );

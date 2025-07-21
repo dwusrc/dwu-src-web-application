@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageLayout } from "../components";
+import { useSession } from "../contexts/session-context";
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const { refreshProfile, profile } = useSession();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,8 +33,15 @@ export default function LoginPage() {
       
       if (data.success) {
         setSuccess(true);
+        // Refresh profile to get the latest role
+        await refreshProfile();
+        // Wait a moment for profile to update
         setTimeout(() => {
-          window.location.href = "/dashboard";
+          let redirectUrl = "/dashboard";
+          if (profile?.role === "student") redirectUrl = "/dashboard/student";
+          else if (profile?.role === "src") redirectUrl = "/dashboard/src";
+          else if (profile?.role === "admin") redirectUrl = "/dashboard/admin";
+          window.location.href = redirectUrl;
         }, 1000);
       } else {
         setError(data.error || "Login failed. Please try again.");
