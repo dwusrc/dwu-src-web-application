@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { NewsPost } from '@/types/supabase';
 import { newsPostsApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -103,9 +104,11 @@ function FeaturedNewsCard({ post, isMain, formatDate }: FeaturedNewsCardProps) {
       {/* Image */}
       {post.image_url && (
         <div className={`overflow-hidden ${isMain ? 'aspect-video' : 'aspect-square'}`}>
-          <img
+          <Image
             src={post.image_url}
             alt={post.title}
+            width={isMain ? 800 : 400}
+            height={isMain ? 450 : 400}
             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
           />
         </div>

@@ -32,14 +32,14 @@ interface Proposal {
   feedback?: string;
 }
 
-interface NewsPost {
-  id: string;
-  title: string;
-  excerpt: string;
-  category: string;
-  createdAt: string;
-  featured: boolean;
-}
+// interface NewsPost {
+//   id: string;
+//   title: string;
+//   excerpt: string;
+//   category: string;
+//   createdAt: string;
+//   featured: boolean;
+// }
 
 interface ChatMessage {
   id: string;
@@ -109,32 +109,33 @@ export default function StudentDashboard() {
     },
   ];
 
-  const newsPosts: NewsPost[] = [
-    {
-      id: '1',
-      title: 'Semester Schedule Update',
-      excerpt: 'Important changes to the semester schedule have been announced...',
-      category: 'academic',
-      createdAt: '2024-01-15',
-      featured: true,
-    },
-    {
-      id: '2',
-      title: 'SRC Election Results',
-      excerpt: 'The results of the Student Representative Council elections...',
-      category: 'general',
-      createdAt: '2024-01-14',
-      featured: false,
-    },
-    {
-      id: '3',
-      title: 'Upcoming Events Calendar',
-      excerpt: 'Check out the exciting events planned for this semester...',
-      category: 'events',
-      createdAt: '2024-01-13',
-      featured: false,
-    },
-  ];
+  // Mock news posts data (unused but kept for future implementation)
+  // const newsPosts: NewsPost[] = [
+  //   {
+  //     id: '1',
+  //     title: 'Semester Schedule Update',
+  //     excerpt: 'Important changes to the semester schedule have been announced...',
+  //     category: 'academic',
+  //     createdAt: '2024-01-15',
+  //     featured: true,
+  //   },
+  //   {
+  //     id: '2',
+  //     title: 'SRC Election Results',
+  //     excerpt: 'The results of the Student Representative Council elections...',
+  //     category: 'general',
+  //     createdAt: '2024-01-14',
+  //     featured: false,
+  //   },
+  //   {
+  //     id: '3',
+  //     title: 'Upcoming Events Calendar',
+  //     excerpt: 'Check out the exciting events planned for this semester...',
+  //     category: 'events',
+  //     createdAt: '2024-01-13',
+  //     featured: false,
+  //   },
+  // ];
 
   const chatMessages: ChatMessage[] = [
     {
@@ -599,35 +600,27 @@ export default function StudentDashboard() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                      <input
-                        type="text"
-                        value="John Doe"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      />
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
+                        John Doe
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
-                      <input
-                        type="text"
-                        value="2024001"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      />
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
+                        2024001
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                      <input
-                        type="text"
-                        value="Computer Science"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      />
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
+                        Computer Science
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Year Level</label>
-                      <input
-                        type="text"
-                        value="3rd Year"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      />
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
+                        3rd Year
+                      </div>
                     </div>
                     <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
                       Update Profile

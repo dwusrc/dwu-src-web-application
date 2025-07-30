@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { NewsPost, NewsCategory, PostStatus } from '@/types/supabase';
 import { newsPostsApi, newsCategoriesApi, imageUploadApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -183,9 +184,11 @@ export default function NewsManagement() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       {post.image_url && (
-                        <img
+                        <Image
                           src={post.image_url}
                           alt={post.title}
+                          width={40}
+                          height={40}
                           className="h-10 w-10 rounded-lg object-cover mr-3"
                         />
                       )}
@@ -423,9 +426,11 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
               />
               {uploading && <p className="text-sm text-gray-500 mt-1">Uploading...</p>}
               {formData.image_url && (
-                <img
+                <Image
                   src={formData.image_url}
                   alt="Preview"
+                  width={80}
+                  height={80}
                   className="mt-2 h-20 w-20 object-cover rounded"
                 />
               )}

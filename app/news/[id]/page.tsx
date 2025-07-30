@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Image from 'next/image';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { newsPostsApi } from '@/lib/news-api';
 import { NewsPost } from '@/types/supabase';
@@ -98,9 +99,11 @@ export default function NewsDetailPage() {
             {/* Featured Image */}
             {post.image_url && (
               <div className="aspect-video overflow-hidden">
-                <img
+                <Image
                   src={post.image_url}
                   alt={post.title}
+                  width={800}
+                  height={450}
                   className="w-full h-full object-cover"
                 />
               </div>

@@ -129,7 +129,7 @@ export default function AdminDashboard() {
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to update user' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to update user' });
     }
   };
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to delete user' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to delete user' });
     }
   };

@@ -33,12 +33,12 @@ interface Proposal {
   createdAt: string;
 }
 
-interface NewsPost {
-  id: string;
-  title: string;
-  status: 'draft' | 'published' | 'archived';
-  createdAt: string;
-}
+// interface NewsPost {
+//   id: string;
+//   title: string;
+//   status: 'draft' | 'published' | 'archived';
+//   createdAt: string;
+// }
 
 export default function SRCDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -116,26 +116,27 @@ export default function SRCDashboard() {
     },
   ];
 
-  const newsPosts: NewsPost[] = [
-    {
-      id: '1',
-      title: 'Semester Schedule Update',
-      status: 'published',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      title: 'SRC Election Results',
-      status: 'published',
-      createdAt: '2024-01-14',
-    },
-    {
-      id: '3',
-      title: 'Upcoming Events Calendar',
-      status: 'draft',
-      createdAt: '2024-01-13',
-    },
-  ];
+  // Mock news posts data (unused but kept for future implementation)
+  // const newsPosts: NewsPost[] = [
+  //   {
+  //     id: '1',
+  //     title: 'Semester Schedule Update',
+  //     status: 'published',
+  //     createdAt: '2024-01-15',
+  //   },
+  //   {
+  //     id: '2',
+  //     title: 'SRC Election Results',
+  //     status: 'published',
+  //     createdAt: '2024-01-14',
+  //   },
+  //   {
+  //     id: '3',
+  //     title: 'Upcoming Events Calendar',
+  //     status: 'draft',
+  //     createdAt: '2024-01-13',
+  //   },
+  // ];
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {

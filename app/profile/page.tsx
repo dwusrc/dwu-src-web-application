@@ -38,7 +38,7 @@ function ProfilePageContent() {
       if (profile?.avatar_url) {
         const path = profile.avatar_url; // Use the storage path directly
         if (path) {
-          const { data, error } = await supabase.storage
+          const { data } = await supabase.storage
             .from('avatars')
             .createSignedUrl(path, 60 * 60 * 24 * 7); // 1 week expiry
           if (data?.signedUrl) {

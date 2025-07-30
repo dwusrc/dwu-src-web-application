@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { NewsPost, NewsCategory } from '@/types/supabase';
 import { newsPostsApi, newsCategoriesApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -187,9 +188,11 @@ function NewsCard({ post, getCategoryName, getCategoryColor, formatDate }: NewsC
       {/* Image */}
       {post.image_url && (
         <div className="aspect-video overflow-hidden">
-          <img
+          <Image
             src={post.image_url}
             alt={post.title}
+            width={600}
+            height={338}
             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
           />
         </div>
