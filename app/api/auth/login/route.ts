@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       role: data.user?.user_metadata?.role || null
     });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

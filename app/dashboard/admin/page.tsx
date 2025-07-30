@@ -62,7 +62,7 @@ export default function AdminDashboard() {
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to fetch users' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to fetch users' });
     } finally {
       setLoading(false);

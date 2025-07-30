@@ -25,17 +25,28 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface NewsCategory {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface NewsPost {
   id: string;
   title: string;
   content: string;
   excerpt?: string;
   author_id?: string;
+  category_id?: string;
   status: PostStatus;
   featured: boolean;
   image_url?: string;
   tags?: string[];
   view_count: number;
+  allow_comments: boolean;
   created_at: string;
   updated_at: string;
   published_at: string;

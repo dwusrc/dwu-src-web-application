@@ -78,7 +78,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setUser(null);
       setProfile(null);
       setSession(null);
-    } catch (error) {
+    } catch {
       // Silent error handling for sign out
     }
   };

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     // The 'path' property in the response contains the key to the file in the bucket
     return NextResponse.json({ ...data, path: fileName });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 

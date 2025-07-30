@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Removed ignoreDuringBuilds and ignoreBuildErrors
+  // This ensures code quality checks run during build
 };
 
 export default nextConfig;

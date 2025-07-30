@@ -27,7 +27,27 @@ CREATE TABLE profiles (
 CREATE TYPE user_role AS ENUM ('student', 'src', 'admin');
 ```
 
-### 2. **news_posts** (News & Announcements)
+### 2. **news_categories** (News Categories)
+```sql
+CREATE TABLE news_categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  color TEXT DEFAULT '#359d49',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert default categories
+INSERT INTO news_categories (name, description, color) VALUES
+  ('general', 'General announcements', '#359d49'),
+  ('academic', 'Academic updates and information', '#2a6b39'),
+  ('events', 'Campus events and activities', '#ddc753'),
+  ('important', 'Important notices and alerts', '#dc2626'),
+  ('student-life', 'Student life and activities', '#7c3aed');
+```
+
+### 3. **news_posts** (News & Announcements)
 ```sql
 CREATE TABLE news_posts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -35,11 +55,13 @@ CREATE TABLE news_posts (
   content TEXT NOT NULL,
   excerpt TEXT, -- Short summary for preview
   author_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  category_id UUID REFERENCES news_categories(id) ON DELETE SET NULL,
   status post_status DEFAULT 'published',
   featured BOOLEAN DEFAULT false,
   image_url TEXT,
   tags TEXT[], -- Array of tags
   view_count INTEGER DEFAULT 0,
+  allow_comments BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -277,6 +299,22 @@ CREATE POLICY "Admins can delete all profiles" ON profiles
   );
 ```
 
+### News Categories RLS Policies
+```sql
+-- Anyone can view categories
+CREATE POLICY "Anyone can view categories" ON news_categories
+  FOR SELECT USING (true);
+
+-- Admins can manage categories
+CREATE POLICY "Admins can manage categories" ON news_categories
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+```
+
 ### News Posts RLS Policies
 ```sql
 -- Everyone can view published posts
@@ -295,6 +333,16 @@ CREATE POLICY "SRC and Admin can create posts" ON news_posts
 -- Author, SRC, and Admin can update posts
 CREATE POLICY "Author and SRC/Admin can update posts" ON news_posts
   FOR UPDATE USING (
+    author_id = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role IN ('src', 'admin')
+    )
+  );
+
+-- Author and SRC/Admin can delete posts
+CREATE POLICY "Author and SRC/Admin can delete posts" ON news_posts
+  FOR DELETE USING (
     author_id = auth.uid() OR
     EXISTS (
       SELECT 1 FROM profiles 

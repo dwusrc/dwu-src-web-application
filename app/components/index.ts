@@ -13,4 +13,9 @@ export { FeatureCard } from './cards/feature-card';
 
 // UI Components
 export { Button } from './ui/button';
-export type { ButtonProps } from './ui/button'; 
+export type { ButtonProps } from './ui/button';
+
+// News Components
+export { default as NewsManagement } from './news/news-management';
+export { default as NewsDisplay } from './news/news-display';
+export { default as FeaturedNews } from './news/featured-news'; 
