@@ -98,11 +98,9 @@ function ProfilePageContent() {
     if (!file) return;
 
     setMessage(null);
-    console.log('Starting avatar upload for file:', file.name, 'Type:', file.type);
 
     try {
       // 1. Get a signed URL for the upload
-      console.log('Requesting signed URL from API...');
       const response = await fetch('/api/avatar/upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,13 +108,11 @@ function ProfilePageContent() {
       });
       
       const uploadData = await response.json();
-      console.log('API Response for signed URL:', uploadData);
 
       if (!response.ok || !uploadData.signedUrl) {
         throw new Error(uploadData.error || 'Failed to get a signed URL.');
       }
 
-      console.log('Got signed URL, attempting to upload file...');
       // 2. Upload the file to Supabase Storage
       const uploadResponse = await fetch(uploadData.signedUrl, {
         method: 'PUT',
@@ -128,9 +124,7 @@ function ProfilePageContent() {
         throw new Error('Failed to upload avatar.');
       }
 
-      console.log('File upload successful.');
       // 3. Update the user's profile with the new avatar storage path
-      console.log('Updating profile with new avatar path:', uploadData.path);
       const profileUpdateResponse = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,7 +138,6 @@ function ProfilePageContent() {
       await refreshProfile();
 
     } catch (error: unknown) {
-      console.error('Avatar upload process failed:', error);
       if (error instanceof Error) {
         setMessage({ type: 'error', text: error.message });
       } else {

@@ -49,16 +49,7 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .select('*');
 
-  // Debug logging
-  console.log({
-    message: 'Profile update result',
-    data,
-    error,
-    userId: user.id
-  });
-
   if (error) {
-    console.error('Error updating profile:', error);
     return NextResponse.json({ error: 'Failed to update profile.' }, { status: 500 });
   }
 

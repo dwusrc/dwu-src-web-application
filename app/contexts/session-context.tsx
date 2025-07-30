@@ -79,7 +79,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setProfile(null);
       setSession(null);
     } catch (error) {
-      console.error('Error signing out:', error);
+      // Silent error handling for sign out
     }
   };
 
