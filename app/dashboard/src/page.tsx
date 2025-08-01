@@ -103,10 +103,10 @@ export default function SRCDashboard() {
         setComplaints(transformedComplaints);
         setTotalCount(data.pagination?.total || 0);
       } else {
-        console.error('Failed to fetch complaints');
+        alert('Failed to load complaints');
       }
     } catch (error) {
-      console.error('Error fetching complaints:', error);
+      alert('Failed to load complaints');
     } finally {
       setLoading(false);
     }
@@ -139,7 +139,6 @@ export default function SRCDashboard() {
         alert('Failed to assign complaint');
       }
     } catch (error) {
-      console.error('Error assigning complaint:', error);
       alert('Failed to assign complaint');
     }
   };
@@ -170,7 +169,6 @@ export default function SRCDashboard() {
         alert('Failed to update complaint status');
       }
     } catch (error) {
-      console.error('Error updating complaint status:', error);
       alert('Failed to update complaint status');
     }
   };
@@ -209,7 +207,6 @@ export default function SRCDashboard() {
         alert(`Failed to update complaint: ${errorData.error}`);
       }
     } catch (error) {
-      console.error('Error updating complaint:', error);
       alert('Failed to update complaint');
     }
   };

@@ -29,7 +29,7 @@ export default function FeaturedNews({ limit = 3, showViewAll = true }: Featured
       });
       setPosts(postsData);
     } catch (error) {
-      console.error('Error loading featured posts:', error);
+      alert('Failed to load featured posts');
     } finally {
       setLoading(false);
     }

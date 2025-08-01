@@ -30,7 +30,7 @@ export default function NewsManagement() {
       setPosts(postsData);
       setCategories(categoriesData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      alert('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export default function NewsManagement() {
       setPosts(prev => [newPost, ...prev]);
       setShowCreateModal(false);
     } catch (error) {
-      console.error('Error creating post:', error);
+      alert('Failed to create post');
     }
   };
 
@@ -63,7 +63,7 @@ export default function NewsManagement() {
       setShowEditModal(false);
       setSelectedPost(null);
     } catch (error) {
-      console.error('Error updating post:', error);
+      alert('Failed to update post');
     }
   };
 
@@ -74,7 +74,7 @@ export default function NewsManagement() {
       await newsPostsApi.deletePost(id);
       setPosts(prev => prev.filter(post => post.id !== id));
     } catch (error) {
-      console.error('Error deleting post:', error);
+      alert('Failed to delete post');
     }
   };
 
@@ -333,7 +333,7 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
       const imageUrl = await imageUploadApi.uploadImage(file);
       setFormData(prev => ({ ...prev, image_url: imageUrl }));
     } catch (error) {
-      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
     } finally {
       setUploading(false);
     }

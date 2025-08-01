@@ -27,8 +27,7 @@ export default function NewsDetailPage() {
       const postData = await newsPostsApi.getPost(id);
       setPost(postData);
     } catch (error) {
-      console.error('Error loading post:', error);
-      setError('Post not found or no longer available.');
+      alert('Failed to load post');
     } finally {
       setLoading(false);
     }

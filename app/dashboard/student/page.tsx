@@ -115,10 +115,10 @@ export default function StudentDashboard() {
         setComplaints(transformedComplaints);
         setTotalCount(data.pagination?.total || 0);
       } else {
-        console.error('Failed to fetch complaints');
+        alert('Failed to load complaints');
       }
     } catch (error) {
-      console.error('Error fetching complaints:', error);
+      alert('Failed to load complaints');
     } finally {
       setLoading(false);
     }
@@ -151,10 +151,9 @@ export default function StudentDashboard() {
         const errorData = await response.json();
         alert(`Error: ${errorData.error}`);
       }
-    } catch (error) {
-      console.error('Error submitting complaint:', error);
-      alert('Failed to submit complaint. Please try again.');
-    } finally {
+          } catch (error) {
+        alert('Failed to submit complaint. Please try again.');
+      } finally {
       setIsSubmitting(false);
     }
   };
@@ -180,15 +179,12 @@ export default function StudentDashboard() {
     
     // Prevent duplicate submissions
     if (isSubmitting) {
-      console.log('Already submitting, ignoring duplicate request');
       return;
     }
     
     setIsSubmitting(true);
     
     try {
-      console.log('Submitting complaint update:', { id: selectedComplaint.id, formData });
-      
       const response = await fetch(`/api/complaints/${selectedComplaint.id}`, {
         method: 'PUT',
         headers: {
@@ -197,12 +193,8 @@ export default function StudentDashboard() {
         body: JSON.stringify(formData),
       });
 
-      console.log('Response status:', response.status);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Update successful, response data:', data);
-        console.log('Complaint from response:', data.complaint);
         
         setComplaints(prev => prev.map(c => c.id === selectedComplaint.id ? data.complaint : c));
         setSelectedComplaint(data.complaint);
@@ -211,16 +203,13 @@ export default function StudentDashboard() {
         
         // Force a refresh to ensure we have the latest data from the database
         setTimeout(() => {
-          console.log('Refreshing complaints list after update...');
           fetchComplaints(currentPage);
         }, 100);
       } else {
         const errorData = await response.json();
-        console.error('Server error:', errorData);
         alert(`Failed to update complaint: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error updating complaint:', error);
       alert('Failed to update complaint. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -247,7 +236,6 @@ export default function StudentDashboard() {
           alert('Failed to delete complaint');
         }
       } catch (error) {
-        console.error('Error deleting complaint:', error);
         alert('Failed to delete complaint');
       }
     }

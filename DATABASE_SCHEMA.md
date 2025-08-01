@@ -392,6 +392,20 @@ CREATE POLICY "Students can update own complaints" ON complaints
       WHERE id = auth.uid() AND role = 'student'
     )
   );
+
+-- Students and Admins can delete complaints
+CREATE POLICY "Students and Admins can delete complaints" ON complaints
+  FOR DELETE USING (
+    (student_id = auth.uid() AND 
+     EXISTS (
+       SELECT 1 FROM profiles 
+       WHERE id = auth.uid() AND role = 'student'
+     )) OR
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
 ```
 
 ### Chat RLS Policies

@@ -76,7 +76,6 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('Error fetching complaints:', error);
       return NextResponse.json({ error: 'Failed to fetch complaints' }, { status: 500 });
     }
 
@@ -89,7 +88,6 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Server error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -180,7 +178,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating complaint:', error);
       return NextResponse.json({ error: 'Failed to create complaint' }, { status: 500 });
     }
 
@@ -189,7 +186,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ complaint: data }, { status: 201 });
   } catch (error) {
-    console.error('Server error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

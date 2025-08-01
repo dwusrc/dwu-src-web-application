@@ -87,14 +87,13 @@ export default function ComplaintForm({
 
     // Prevent duplicate submissions
     if (isSubmitting) {
-      console.log('Form already submitting, ignoring duplicate submission');
       return;
     }
 
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error('Error submitting complaint:', error);
+      alert('Failed to submit complaint. Please try again.');
     }
   };
 
