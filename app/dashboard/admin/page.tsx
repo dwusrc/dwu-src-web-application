@@ -239,22 +239,22 @@ export default function AdminDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Student ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Department
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -262,19 +262,22 @@ export default function AdminDashboard() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
                           <div className="text-sm text-gray-500">{user.email}</div>
+                          <div className="text-xs text-gray-500 md:hidden">
+                            Student ID: {user.student_id || 'N/A'} • Status: {user.is_active ? 'Active' : 'Inactive'}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                         {user.student_id || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                         {user.department || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           user.role === 'admin' ? 'bg-red-100 text-red-800' :
                           user.role === 'src' ? 'bg-blue-100 text-blue-800' :
@@ -283,17 +286,17 @@ export default function AdminDashboard() {
                           {user.role.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="hidden sm:table-cell px-3 sm:px-6 py-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-3 sm:px-6 py-4 text-sm font-medium">
                         <Button
                           onClick={() => openEditModal(user)}
-                          className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-3 py-1"
+                          className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-2 sm:px-3 py-1"
                         >
                           Edit
                         </Button>

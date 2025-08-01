@@ -1,27 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
 import NewsDisplay from '@/app/components/news/news-display';
 import FeaturedNews from '@/app/components/news/featured-news';
+import ComplaintForm from '@/app/components/forms/complaint-form';
+import ComplaintList from '@/app/components/complaints/complaint-list';
+import ComplaintView from '@/app/components/forms/complaint-view';
+import { ComplaintCategory, ComplaintPriority, ComplaintWithRelations } from '@/types/supabase';
+import { useSession } from '@/app/contexts/session-context';
+
+
 
 interface DashboardStats {
   myComplaints: number;
   myProposals: number;
   newsUpdates: number;
   chatMessages: number;
-}
-
-interface Complaint {
-  id: string;
-  title: string;
-  category: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
-  createdAt: string;
-  response?: string;
 }
 
 interface Proposal {
@@ -32,15 +29,6 @@ interface Proposal {
   feedback?: string;
 }
 
-// interface NewsPost {
-//   id: string;
-//   title: string;
-//   excerpt: string;
-//   category: string;
-//   createdAt: string;
-//   featured: boolean;
-// }
-
 interface ChatMessage {
   id: string;
   from: string;
@@ -50,48 +38,26 @@ interface ChatMessage {
 }
 
 export default function StudentDashboard() {
+  const { session } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
-  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
+  const [complaints, setComplaints] = useState<ComplaintWithRelations[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
-  // Mock data for UX demonstration
+  // Mock data for other features
   const stats: DashboardStats = {
-    myComplaints: 3,
+    myComplaints: complaints.length,
     myProposals: 2,
     newsUpdates: 5,
     chatMessages: 1,
   };
-
-  const complaints: Complaint[] = [
-    {
-      id: '1',
-      title: 'WiFi connectivity issues in Library',
-      category: 'facilities',
-      priority: 'high',
-      status: 'in_progress',
-      createdAt: '2024-01-15',
-      response: 'We are investigating the WiFi issues. Expected resolution within 2 days.',
-    },
-    {
-      id: '2',
-      title: 'Request for additional study spaces',
-      category: 'facilities',
-      priority: 'medium',
-      status: 'pending',
-      createdAt: '2024-01-14',
-    },
-    {
-      id: '3',
-      title: 'Cafeteria food quality concerns',
-      category: 'other',
-      priority: 'low',
-      status: 'resolved',
-      createdAt: '2024-01-13',
-      response: 'Issue has been addressed with the cafeteria management.',
-    },
-  ];
 
   const proposals: Proposal[] = [
     {
@@ -103,108 +69,242 @@ export default function StudentDashboard() {
     },
     {
       id: '2',
-      title: 'Student Wellness Center Initiative',
+      title: 'Student Lounge Renovation',
       status: 'pending',
       createdAt: '2024-01-14',
     },
   ];
 
-  // Mock news posts data (unused but kept for future implementation)
-  // const newsPosts: NewsPost[] = [
-  //   {
-  //     id: '1',
-  //     title: 'Semester Schedule Update',
-  //     excerpt: 'Important changes to the semester schedule have been announced...',
-  //     category: 'academic',
-  //     createdAt: '2024-01-15',
-  //     featured: true,
-  //   },
-  //   {
-  //     id: '2',
-  //     title: 'SRC Election Results',
-  //     excerpt: 'The results of the Student Representative Council elections...',
-  //     category: 'general',
-  //     createdAt: '2024-01-14',
-  //     featured: false,
-  //   },
-  //   {
-  //     id: '3',
-  //     title: 'Upcoming Events Calendar',
-  //     excerpt: 'Check out the exciting events planned for this semester...',
-  //     category: 'events',
-  //     createdAt: '2024-01-13',
-  //     featured: false,
-  //   },
-  // ];
-
   const chatMessages: ChatMessage[] = [
     {
       id: '1',
-      from: 'SRC Representative',
+      from: 'SRC Member',
       message: 'We have received your complaint and are working on it.',
-      timestamp: '2h ago',
+      timestamp: '2024-01-15 10:30',
       unread: true,
     },
   ];
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Transform complaint data to match component expectations
+  const transformComplaints = (complaints: unknown[]): ComplaintWithRelations[] => {
+    return complaints.map((complaint: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+      ...complaint,
+      student: complaint.student ? {
+        id: complaint.student.id,
+        full_name: complaint.student.full_name,
+        student_id: complaint.student.student_id,
+        department: complaint.student.department,
+        year_level: complaint.student.year_level,
+      } : undefined,
+      assigned_to: complaint.assigned_to ? {
+        id: complaint.assigned_to.id,
+        full_name: complaint.assigned_to.full_name,
+        role: complaint.assigned_to.role,
+      } : undefined,
+    }));
+  };
+
+  // Fetch complaints from API
+  const fetchComplaints = async (page: number = 1) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
+      if (response.ok) {
+        const data = await response.json();
+        const transformedComplaints = transformComplaints(data.complaints || []);
+        setComplaints(transformedComplaints);
+        setTotalCount(data.pagination?.total || 0);
+      } else {
+        console.error('Failed to fetch complaints');
+      }
+    } catch (error) {
+      console.error('Error fetching complaints:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'closed': return 'bg-gray-100 text-gray-800';
-      case 'under_review': return 'bg-purple-100 text-purple-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Submit new complaint
+  const handleSubmitComplaint = async (formData: {
+    title: string;
+    description: string;
+    category: ComplaintCategory;
+    priority: ComplaintPriority;
+  }) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/complaints', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setComplaints(prev => [data.complaint, ...prev]);
+        setShowComplaintModal(false);
+        // Refresh complaints list
+        fetchComplaints(currentPage);
+      } else {
+        const errorData = await response.json();
+        alert(`Error: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error submitting complaint:', error);
+      alert('Failed to submit complaint. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  // Handle complaint actions
+  const handleViewComplaint = (complaint: ComplaintWithRelations) => {
+    setSelectedComplaint(complaint);
+  };
+
+  const handleEditComplaint = (complaint: ComplaintWithRelations) => {
+    // Set the complaint and enable edit mode
+    setSelectedComplaint(complaint);
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = async (formData: {
+    title: string;
+    description: string;
+    category: ComplaintCategory;
+    priority: ComplaintPriority;
+  }) => {
+    if (!selectedComplaint) return;
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring duplicate request');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      console.log('Submitting complaint update:', { id: selectedComplaint.id, formData });
+      
+      const response = await fetch(`/api/complaints/${selectedComplaint.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      console.log('Response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Update successful, response data:', data);
+        console.log('Complaint from response:', data.complaint);
+        
+        setComplaints(prev => prev.map(c => c.id === selectedComplaint.id ? data.complaint : c));
+        setSelectedComplaint(data.complaint);
+        setEditMode(false);
+        alert('Complaint updated successfully!');
+        
+        // Force a refresh to ensure we have the latest data from the database
+        setTimeout(() => {
+          console.log('Refreshing complaints list after update...');
+          fetchComplaints(currentPage);
+        }, 100);
+      } else {
+        const errorData = await response.json();
+        console.error('Server error:', errorData);
+        alert(`Failed to update complaint: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error updating complaint:', error);
+      alert('Failed to update complaint. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+  };
+
+  const handleDeleteComplaint = async (complaint: ComplaintWithRelations) => {
+    if (confirm('Are you sure you want to delete this complaint?')) {
+      try {
+        const response = await fetch(`/api/complaints/${complaint.id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setComplaints(prev => prev.filter(c => c.id !== complaint.id));
+          if (selectedComplaint?.id === complaint.id) {
+            setSelectedComplaint(null);
+          }
+        } else {
+          alert('Failed to delete complaint');
+        }
+      } catch (error) {
+        console.error('Error deleting complaint:', error);
+        alert('Failed to delete complaint');
+      }
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchComplaints(page);
+  };
+
+  // Load complaints on component mount
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
+
+  const tabs = [
+    { id: 'overview', name: 'Overview', shortName: 'Overview', icon: '📊' },
+    { id: 'news', name: 'News & Updates', shortName: 'News', icon: '📢' },
+    { id: 'complaints', name: 'My Complaints', shortName: 'Complaints', icon: '⚠️' },
+    { id: 'proposals', name: 'My Proposals', shortName: 'Proposals', icon: '📋' },
+    { id: 'chat', name: 'Chat', shortName: 'Chat', icon: '💬' },
+    { id: 'forums', name: 'Forums', shortName: 'Forums', icon: '📝' },
+    { id: 'profile', name: 'Profile', shortName: 'Profile', icon: '👤' },
+  ];
 
   return (
     <ProtectedRoute requiredRole="student">
       <PageLayout>
-        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#2a6b39]">Student Dashboard</h1>
-            <p className="text-gray-600 mt-2">Submit complaints, proposals, and stay updated with campus news</p>
+            <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
+            <p className="mt-2 text-gray-600">
+              Welcome back, {session?.user?.user_metadata?.full_name || 'Student'}!
+            </p>
           </div>
 
           {/* Navigation Tabs */}
-          <div className="mb-6">
-            <nav className="flex space-x-8 border-b border-gray-200">
-              {[
-                { id: 'overview', name: 'Overview', icon: '📊' },
-                { id: 'news', name: 'News & Updates', icon: '📢' },
-                { id: 'complaints', name: 'My Complaints', icon: '⚠️' },
-                { id: 'proposals', name: 'My Proposals', icon: '📋' },
-                { id: 'chat', name: 'Chat', icon: '💬' },
-                { id: 'forums', name: 'Forums', icon: '📝' },
-                { id: 'profile', name: 'Profile', icon: '👤' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-[#359d49] text-[#359d49]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <span className="mr-2">{tab.icon}</span>
-                  {tab.name}
-                </button>
-              ))}
+          <div className="mb-8">
+            <nav className="flex space-x-8">
+              <div className="flex space-x-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === tab.id
+                        ? 'border-[#359d49] text-[#359d49]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="mr-1 sm:mr-2">{tab.icon}</span>
+                    <span className="hidden sm:inline">{tab.name}</span>
+                    <span className="sm:hidden">{tab.shortName}</span>
+                  </button>
+                ))}
+              </div>
             </nav>
           </div>
 
@@ -297,37 +397,78 @@ export default function StudentDashboard() {
                     📝 Join Forum
                   </Button>
                   <Button
-                    onClick={() => setActiveTab('profile')}
+                    onClick={() => setActiveTab('complaints')}
                     className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
                   >
-                    👤 My Profile
+                    📋 View Complaints
                   </Button>
                 </div>
               </div>
 
-              {/* Featured News */}
-              <FeaturedNews limit={3} showViewAll={true} />
-
               {/* Recent Activity */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full mr-3"></span>
-                    Complaint &quot;WiFi Issues&quot; status updated to &quot;In Progress&quot;
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Complaints */}
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Complaints</h3>
+                  {complaints.slice(0, 3).length > 0 ? (
+                    <div className="space-y-3">
+                      {complaints.slice(0, 3).map((complaint) => (
+                        <div
+                          key={complaint.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleViewComplaint(complaint)}
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">{complaint.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(complaint.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            complaint.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            complaint.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                            complaint.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {complaint.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No complaints yet</p>
+                  )}
+                  <Button
+                    onClick={() => setActiveTab('complaints')}
+                    className="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    View All Complaints
+                  </Button>
+                </div>
+
+                {/* Recent News */}
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent News</h3>
+                  <div className="space-y-3">
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-900">Campus WiFi Maintenance</p>
+                      <p className="text-xs text-gray-500">Scheduled for this weekend</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-900">Student Council Elections</p>
+                      <p className="text-xs text-gray-500">Nominations now open</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-900">Library Extended Hours</p>
+                      <p className="text-xs text-gray-500">During exam period</p>
+                    </div>
                   </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-                    SRC responded to your proposal &quot;Campus WiFi Upgrade&quot;
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-purple-400 rounded-full mr-3"></span>
-                    New news post: &quot;Semester Schedule Update&quot;
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full mr-3"></span>
-                    New message from SRC representative
-                  </div>
+                  <Button
+                    onClick={() => setActiveTab('news')}
+                    className="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    View All News
+                  </Button>
                 </div>
               </div>
             </div>
@@ -336,8 +477,8 @@ export default function StudentDashboard() {
           {/* News Tab */}
           {activeTab === 'news' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">News & Updates</h2>
-              <NewsDisplay limit={12} showFilters={true} showPagination={true} />
+              <FeaturedNews />
+              <NewsDisplay />
             </div>
           )}
 
@@ -350,54 +491,25 @@ export default function StudentDashboard() {
                   onClick={() => setShowComplaintModal(true)}
                   className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
                 >
-                  ⚠️ Submit New Complaint
+                  + Submit New Complaint
                 </Button>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {complaints.map((complaint) => (
-                      <tr key={complaint.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{complaint.title}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">{complaint.category}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(complaint.priority)}`}>
-                            {complaint.priority}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(complaint.status)}`}>
-                            {complaint.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{complaint.createdAt}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Button
-                            onClick={() => {
-                              setSelectedComplaint(complaint);
-                              setShowComplaintModal(true);
-                            }}
-                            className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-3 py-1"
-                          >
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ComplaintList
+                complaints={complaints}
+                loading={loading}
+                onView={handleViewComplaint}
+                onEdit={handleEditComplaint}
+                onDelete={handleDeleteComplaint}
+                userRole="student"
+                currentUserId={session?.user?.id}
+                showFilters={true}
+                showPagination={true}
+                totalCount={totalCount}
+                currentPage={currentPage}
+                pageSize={10}
+                onPageChange={handlePageChange}
+              />
             </div>
           )}
 
@@ -410,7 +522,7 @@ export default function StudentDashboard() {
                   onClick={() => setShowProposalModal(true)}
                   className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
                 >
-                  📋 Submit New Proposal
+                  + Submit New Proposal
                 </Button>
               </div>
 
@@ -418,26 +530,46 @@ export default function StudentDashboard() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Title
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Submitted
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {proposals.map((proposal) => (
                       <tr key={proposal.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{proposal.title}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(proposal.status)}`}>
+                          <div className="text-sm font-medium text-gray-900">{proposal.title}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            proposal.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            proposal.status === 'under_review' ? 'bg-blue-100 text-blue-800' :
+                            proposal.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
                             {proposal.status.replace('_', ' ')}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{proposal.createdAt}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {proposal.createdAt}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-3 py-1">
+                          <button className="text-[#359d49] hover:text-[#2a6b39] mr-3">
                             View
-                          </Button>
+                          </button>
+                          <button className="text-red-600 hover:text-red-900">
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -450,71 +582,39 @@ export default function StudentDashboard() {
           {/* Chat Tab */}
           {activeTab === 'chat' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Student Chat</h2>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Chat List */}
-                <div className="lg:col-span-1">
-                  <div className="bg-white rounded-lg shadow-md p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Conversations</h3>
-                    <div className="space-y-3">
-                      {chatMessages.map((message) => (
-                        <div key={message.id} className={`p-3 rounded-lg cursor-pointer ${message.unread ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium text-gray-900">{message.from}</p>
-                              <p className="text-sm text-gray-600 truncate">{message.message}</p>
-                            </div>
-                            <div className="text-xs text-gray-500">{message.timestamp}</div>
-                          </div>
-                          {message.unread && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={() => setShowChatModal(true)}
-                      className="w-full mt-4 bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                    >
-                      Start New Chat
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Chat with SRC</h2>
+                <Button
+                  onClick={() => setShowChatModal(true)}
+                  className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                >
+                  + Start New Chat
+                </Button>
+              </div>
 
-                {/* Chat Interface */}
-                <div className="lg:col-span-2">
-                  <div className="bg-white rounded-lg shadow-md h-96 flex flex-col">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="font-semibold text-gray-900">Chat with SRC Representative</h3>
-                    </div>
-                    <div className="flex-1 p-4 overflow-y-auto">
-                      <div className="space-y-4">
-                        <div className="flex justify-end">
-                          <div className="bg-[#359d49] text-white p-3 rounded-lg max-w-xs">
-                            <p className="text-sm">Hi, I have a question about the WiFi issues in the library.</p>
-                          </div>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="space-y-4">
+                  {chatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`p-4 rounded-lg ${
+                        message.unread ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{message.from}</p>
+                          <p className="text-sm text-gray-600 mt-1">{message.message}</p>
                         </div>
-                        <div className="flex justify-start">
-                          <div className="bg-gray-100 p-3 rounded-lg max-w-xs">
-                            <p className="text-sm">Hello! We have received your complaint and are working on it. Expected resolution within 2 days.</p>
-                          </div>
-                        </div>
+                        <div className="text-xs text-gray-500">{message.timestamp}</div>
                       </div>
+                      {message.unread && (
+                        <span className="inline-block mt-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                          New
+                        </span>
+                      )}
                     </div>
-                    <div className="p-4 border-t border-gray-200">
-                      <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          placeholder="Type your message..."
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                        />
-                        <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                          Send
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -523,67 +623,9 @@ export default function StudentDashboard() {
           {/* Forums Tab */}
           {activeTab === 'forums' && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Discussion Forums</h2>
-                <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                  📝 Create New Post
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* General Discussions */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">💬 General Discussions</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Active Topics</span>
-                      <span className="text-sm font-medium text-gray-900">12</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Recent Posts</span>
-                      <span className="text-sm font-medium text-gray-900">8</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Join Discussion
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Academic Discussions */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📚 Academic Discussions</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Active Topics</span>
-                      <span className="text-sm font-medium text-gray-900">8</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Recent Posts</span>
-                      <span className="text-sm font-medium text-gray-900">5</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Join Discussion
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Department Forums */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🏢 Department Forums</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Active Topics</span>
-                      <span className="text-sm font-medium text-gray-900">6</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Recent Posts</span>
-                      <span className="text-sm font-medium text-gray-900">3</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Join Discussion
-                    </Button>
-                  </div>
-                </div>
+              <h2 className="text-2xl font-bold text-gray-900">Discussion Forums</h2>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <p className="text-gray-600">Forum functionality coming soon...</p>
               </div>
             </div>
           )}
@@ -592,279 +634,147 @@ export default function StudentDashboard() {
           {activeTab === 'profile' && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Profile Information */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
-                        John Doe
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
-                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
-                        2024001
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
-                        Computer Science
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Year Level</label>
-                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900">
-                        3rd Year
-                      </div>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Update Profile
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Activity Summary */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Summary</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Total Complaints Submitted</span>
-                      <span className="text-sm font-medium text-gray-900">3</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Total Proposals Submitted</span>
-                      <span className="text-sm font-medium text-gray-900">2</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Forum Posts</span>
-                      <span className="text-sm font-medium text-gray-900">5</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Chat Conversations</span>
-                      <span className="text-sm font-medium text-gray-900">8</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Member Since</span>
-                      <span className="text-sm font-medium text-gray-900">January 2024</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Modals */}
-          {/* Complaint Submission Modal */}
-          {showComplaintModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {selectedComplaint ? 'View Complaint' : 'Submit New Complaint'}
-                  </h3>
-                </div>
-                <div className="p-6 space-y-4">
-                  {selectedComplaint ? (
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{selectedComplaint.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1">Category: {selectedComplaint.category}</p>
-                        <p className="text-sm text-gray-600">Priority: {selectedComplaint.priority}</p>
-                        <p className="text-sm text-gray-600">Status: {selectedComplaint.status.replace('_', ' ')}</p>
-                      </div>
-                      {selectedComplaint.response && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">SRC Response</label>
-                          <div className="bg-gray-50 p-3 rounded-md">
-                            <p className="text-sm text-gray-700">{selectedComplaint.response}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                          placeholder="Brief description of your complaint..."
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                        <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
-                          <option value="">Select category</option>
-                          <option value="academic">Academic</option>
-                          <option value="facilities">Facilities</option>
-                          <option value="security">Security</option>
-                          <option value="health">Health</option>
-                          <option value="transport">Transport</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Priority *</label>
-                        <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
-                          <option value="">Select priority</option>
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                        <textarea
-                          rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                          placeholder="Please provide detailed description of your complaint..."
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button
-                      onClick={() => {
-                        setShowComplaintModal(false);
-                        setSelectedComplaint(null);
-                      }}
-                      className="bg-gray-300 hover:bg-gray-400 text-gray-700"
-                    >
-                      {selectedComplaint ? 'Close' : 'Cancel'}
-                    </Button>
-                    {!selectedComplaint && (
-                      <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                        Submit Complaint
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Proposal Submission Modal */}
-          {showProposalModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Submit New Proposal</h3>
-                </div>
-                <div className="p-6 space-y-4">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      placeholder="Project title..."
-                    />
+                    <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {session?.user?.user_metadata?.full_name || 'Not set'}
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                    <textarea
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      placeholder="Describe your project proposal..."
-                    />
+                    <label className="block text-sm font-medium text-gray-700">Email</label>
+                    <p className="mt-1 text-sm text-gray-900">{session?.user?.email}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Objectives *</label>
-                    <textarea
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      placeholder="What are the main objectives of this project?"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Budget (USD)</label>
-                      <input
-                        type="number"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Timeline (months)</label>
-                      <input
-                        type="number"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                        placeholder="1"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button
-                      onClick={() => setShowProposalModal(false)}
-                      className="bg-gray-300 hover:bg-gray-400 text-gray-700"
-                    >
-                      Cancel
-                    </Button>
-                    <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Submit Proposal
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Chat Modal */}
-          {showChatModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Start New Chat</h3>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Recipient</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
-                      <option value="">Choose SRC representative...</option>
-                      <option value="general">General SRC Representative</option>
-                      <option value="academic">Academic Affairs Representative</option>
-                      <option value="facilities">Facilities Representative</option>
-                      <option value="student-life">Student Life Representative</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      placeholder="Brief subject of your message..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                    <textarea
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      placeholder="Type your message here..."
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button
-                      onClick={() => setShowChatModal(false)}
-                      className="bg-gray-300 hover:bg-gray-400 text-gray-700"
-                    >
-                      Cancel
-                    </Button>
-                    <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Start Chat
-                    </Button>
+                    <label className="block text-sm font-medium text-gray-700">Student ID</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {session?.user?.user_metadata?.student_id || 'Not set'}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           )}
         </div>
+
+        {/* Complaint Modal */}
+        {showComplaintModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Submit New Complaint</h3>
+                  <button
+                    onClick={() => setShowComplaintModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <ComplaintForm
+                  onSubmit={handleSubmitComplaint}
+                  onCancel={() => setShowComplaintModal(false)}
+                  isSubmitting={isSubmitting}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Complaint View Modal */}
+        {selectedComplaint && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-4/5 lg:w-3/4 shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Complaint Details</h3>
+                  <button
+                    onClick={() => setSelectedComplaint(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {editMode ? (
+                  <ComplaintForm
+                    initialData={{
+                      title: selectedComplaint.title,
+                      description: selectedComplaint.description,
+                      category: selectedComplaint.category,
+                      priority: selectedComplaint.priority,
+                    }}
+                    onSubmit={handleSaveEdit}
+                    onCancel={handleCancelEdit}
+                    isSubmitting={isSubmitting}
+                    submitLabel="Update Complaint"
+                  />
+                ) : (
+                  <ComplaintView
+                    complaint={selectedComplaint}
+                    showActions={true}
+                    onEdit={() => handleEditComplaint(selectedComplaint)}
+                    onDelete={() => handleDeleteComplaint(selectedComplaint)}
+                    userRole="student"
+                    isAssignedToUser={false}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Proposal Modal */}
+        {showProposalModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Submit New Proposal</h3>
+                  <button
+                    onClick={() => setShowProposalModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-gray-600">Proposal form coming soon...</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chat Modal */}
+        {showChatModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Start New Chat</h3>
+                  <button
+                    onClick={() => setShowChatModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-gray-600">Chat functionality coming soon...</p>
+              </div>
+            </div>
+          </div>
+        )}
       </PageLayout>
     </ProtectedRoute>
   );

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { NewsPost, NewsCategory } from '@/types/supabase';
 import { newsPostsApi, newsCategoriesApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -183,18 +182,44 @@ interface NewsCardProps {
 }
 
 function NewsCard({ post, getCategoryName, getCategoryColor, formatDate }: NewsCardProps) {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
+
   return (
     <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
       {/* Image */}
-      {post.image_url && (
-        <div className="aspect-video overflow-hidden">
-          <Image
+      {post.image_url && !imageError && (
+        <div className="aspect-video overflow-hidden relative bg-gray-100">
+          {imageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
+            </div>
+          )}
+          <img
             src={post.image_url}
             alt={post.title}
-            width={600}
-            height={338}
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            className={`w-full h-full object-cover hover:scale-105 transition-transform duration-300 ${
+              imageLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+            onLoad={() => setImageLoading(false)}
+            onError={() => {
+              setImageError(true);
+              setImageLoading(false);
+            }}
+            loading="lazy"
           />
+        </div>
+      )}
+      
+      {/* Fallback for image error or no image */}
+      {(!post.image_url || imageError) && (
+        <div className="aspect-video bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <svg className="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+            </svg>
+            <p className="text-sm">No image available</p>
+          </div>
         </div>
       )}
 

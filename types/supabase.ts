@@ -67,6 +67,21 @@ export interface Complaint {
   updated_at: string;
 }
 
+export type ComplaintWithRelations = Complaint & {
+  student?: {
+    id: string;
+    full_name: string;
+    student_id?: string;
+    department?: string;
+    year_level?: number;
+  };
+  assigned_to?: {
+    id: string;
+    full_name: string;
+    role: string;
+  };
+};
+
 export interface ProjectProposal {
   id: string;
   student_id: string;

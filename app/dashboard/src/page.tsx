@@ -1,10 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
 import NewsManagement from '@/app/components/news/news-management';
+import ComplaintList from '@/app/components/complaints/complaint-list';
+import ComplaintView from '@/app/components/forms/complaint-view';
+import { Complaint, ComplaintStatus } from '@/types/supabase';
+import { useSession } from '@/app/contexts/session-context';
+
+// Type for complaint with related data
+type ComplaintWithRelations = Complaint & {
+  student?: {
+    id: string;
+    full_name: string;
+    student_id?: string;
+    department?: string;
+    year_level?: number;
+  };
+  assigned_to?: {
+    id: string;
+    full_name: string;
+    role: string;
+  };
+};
 
 interface DashboardStats {
   pendingComplaints: number;
@@ -13,16 +33,7 @@ interface DashboardStats {
   recentActivity: number;
 }
 
-interface Complaint {
-  id: string;
-  title: string;
-  student: string;
-  department: string;
-  category: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
-  createdAt: string;
-}
+
 
 interface Proposal {
   id: string;
@@ -41,53 +52,177 @@ interface Proposal {
 // }
 
 export default function SRCDashboard() {
+  const { session } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
 
-  // Mock data for UX demonstration
+  const [complaints, setComplaints] = useState<ComplaintWithRelations[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Mock data for other features
   const stats: DashboardStats = {
-    pendingComplaints: 12,
+    pendingComplaints: complaints.filter(c => c.status === 'pending').length,
     activeProposals: 8,
     newsPosts: 15,
     recentActivity: 25,
   };
 
-  const complaints: Complaint[] = [
-    {
-      id: '1',
-      title: 'WiFi connectivity issues in Library',
-      student: 'John Doe',
-      department: 'Computer Science',
-      category: 'facilities',
-      priority: 'high',
-      status: 'pending',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      title: 'Request for additional study spaces',
-      student: 'Jane Smith',
-      department: 'Business',
-      category: 'facilities',
-      priority: 'medium',
-      status: 'in_progress',
-      createdAt: '2024-01-14',
-    },
-    {
-      id: '3',
-      title: 'Cafeteria food quality concerns',
-      student: 'Mike Johnson',
-      department: 'Health Sciences',
-      category: 'other',
-      priority: 'low',
-      status: 'resolved',
-      createdAt: '2024-01-13',
-    },
-  ];
+  // Transform complaint data to match component expectations
+  const transformComplaints = (complaints: unknown[]): ComplaintWithRelations[] => {
+    return complaints.map((complaint: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+      ...complaint,
+      student: complaint.student ? {
+        id: complaint.student.id,
+        full_name: complaint.student.full_name,
+        student_id: complaint.student.student_id,
+        department: complaint.student.department,
+        year_level: complaint.student.year_level,
+      } : undefined,
+      assigned_to: complaint.assigned_to ? {
+        id: complaint.assigned_to.id,
+        full_name: complaint.assigned_to.full_name,
+        role: complaint.assigned_to.role,
+      } : undefined,
+    }));
+  };
+
+  // Fetch complaints from API
+  const fetchComplaints = async (page: number = 1) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
+      if (response.ok) {
+        const data = await response.json();
+        const transformedComplaints = transformComplaints(data.complaints || []);
+        setComplaints(transformedComplaints);
+        setTotalCount(data.pagination?.total || 0);
+      } else {
+        console.error('Failed to fetch complaints');
+      }
+    } catch (error) {
+      console.error('Error fetching complaints:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle complaint actions
+  const handleViewComplaint = (complaint: ComplaintWithRelations) => {
+    setSelectedComplaint(complaint);
+    setShowComplaintModal(true);
+  };
+
+  const handleAssignComplaint = async (complaint: ComplaintWithRelations) => {
+    try {
+      const response = await fetch(`/api/complaints/${complaint.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ assigned_to: session?.user?.id }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
+        if (selectedComplaint?.id === complaint.id) {
+          setSelectedComplaint(data.complaint);
+        }
+        alert('Complaint assigned successfully');
+      } else {
+        alert('Failed to assign complaint');
+      }
+    } catch (error) {
+      console.error('Error assigning complaint:', error);
+      alert('Failed to assign complaint');
+    }
+  };
+
+  const handleRespondToComplaint = async (complaint: ComplaintWithRelations) => {
+    // Open the complaint view modal for responding
+    setSelectedComplaint(complaint);
+    setShowComplaintModal(true);
+  };
+
+  const handleUpdateStatus = async (complaint: ComplaintWithRelations, status: ComplaintStatus) => {
+    try {
+      const response = await fetch(`/api/complaints/${complaint.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
+        if (selectedComplaint?.id === complaint.id) {
+          setSelectedComplaint(data.complaint);
+        }
+      } else {
+        alert('Failed to update complaint status');
+      }
+    } catch (error) {
+      console.error('Error updating complaint status:', error);
+      alert('Failed to update complaint status');
+    }
+  };
+
+  const handleUpdateComplaint = async () => {
+    if (!selectedComplaint) return;
+    
+    // Get form data from the modal
+    const form = document.querySelector('#complaint-modal form');
+    if (!form) return;
+    
+    const formData = new FormData(form as HTMLFormElement);
+    const updateData = {
+      status: formData.get('status') as string,
+      priority: formData.get('priority') as string,
+      response: formData.get('response') as string,
+    };
+
+    try {
+      const response = await fetch(`/api/complaints/${selectedComplaint.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setComplaints(prev => prev.map(c => c.id === selectedComplaint.id ? data.complaint : c));
+        setSelectedComplaint(data.complaint);
+        setShowComplaintModal(false);
+        alert('Complaint updated successfully');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to update complaint: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating complaint:', error);
+      alert('Failed to update complaint');
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchComplaints(page);
+  };
+
+  // Load complaints on component mount
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
 
   const proposals: Proposal[] = [
     {
@@ -176,28 +311,31 @@ export default function SRCDashboard() {
 
           {/* Navigation Tabs */}
           <div className="mb-6">
-            <nav className="flex space-x-8 border-b border-gray-200">
-              {[
-                { id: 'overview', name: 'Overview', icon: '📊' },
-                { id: 'complaints', name: 'Complaints', icon: '⚠️' },
-                { id: 'proposals', name: 'Proposals', icon: '📋' },
-                { id: 'news', name: 'News & Announcements', icon: '📢' },
-                { id: 'communication', name: 'Communication', icon: '💬' },
-                { id: 'services', name: 'Student Services', icon: '👥' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-[#359d49] text-[#359d49]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <span className="mr-2">{tab.icon}</span>
-                  {tab.name}
-                </button>
-              ))}
+            <nav className="flex overflow-x-auto scrollbar-hide border-b border-gray-200">
+              <div className="flex space-x-6 min-w-max px-4">
+                {[
+                  { id: 'overview', name: 'Overview', icon: '📊', shortName: 'Overview' },
+                  { id: 'complaints', name: 'Complaints', icon: '⚠️', shortName: 'Complaints' },
+                  { id: 'proposals', name: 'Proposals', icon: '📋', shortName: 'Proposals' },
+                  { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
+                  { id: 'communication', name: 'Communication', icon: '💬', shortName: 'Comm' },
+                  { id: 'services', name: 'Student Services', icon: '👥', shortName: 'Services' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`py-2 px-3 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-[#359d49] text-[#359d49]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="mr-1 sm:mr-2">{tab.icon}</span>
+                    <span className="hidden sm:inline">{tab.name}</span>
+                    <span className="sm:hidden">{tab.shortName}</span>
+                  </button>
+                ))}
+              </div>
             </nav>
           </div>
 
@@ -328,88 +466,33 @@ export default function SRCDashboard() {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">Complaint Management</h2>
-                <div className="flex space-x-2">
-                  <select className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                  <select className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
-                    <option value="">All Categories</option>
-                    <option value="academic">Academic</option>
-                    <option value="facilities">Facilities</option>
-                    <option value="security">Security</option>
-                    <option value="health">Health</option>
-                    <option value="transport">Transport</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Search complaints..."
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                  />
-                </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {complaints.map((complaint) => (
-                      <tr key={complaint.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{complaint.title}</div>
-                          <div className="text-sm text-gray-500">{complaint.category}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{complaint.student}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{complaint.department}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(complaint.priority)}`}>
-                            {complaint.priority}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(complaint.status)}`}>
-                            {complaint.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Button
-                            onClick={() => {
-                              setSelectedComplaint(complaint);
-                              setShowComplaintModal(true);
-                            }}
-                            className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-3 py-1"
-                          >
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ComplaintList
+                complaints={complaints}
+                loading={loading}
+                onView={(complaint) => handleViewComplaint(complaint as ComplaintWithRelations)}
+                onAssign={(complaint) => handleAssignComplaint(complaint as ComplaintWithRelations)}
+                onRespond={(complaint) => handleRespondToComplaint(complaint as ComplaintWithRelations)}
+                userRole="src"
+                currentUserId={session?.user?.id}
+                showFilters={true}
+                showPagination={true}
+                totalCount={totalCount}
+                currentPage={currentPage}
+                pageSize={10}
+                onPageChange={handlePageChange}
+              />
             </div>
           )}
 
           {/* Proposals Tab */}
           {activeTab === 'proposals' && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
+              <div className="space-y-4">
                 <h2 className="text-2xl font-bold text-gray-900">Proposal Management</h2>
-                <div className="flex space-x-2">
-                  <select className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
+                  <select className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] sm:w-auto">
                     <option value="">All Status</option>
                     <option value="pending">Pending</option>
                     <option value="under_review">Under Review</option>
@@ -419,50 +502,59 @@ export default function SRCDashboard() {
                   <input
                     type="text"
                     placeholder="Search proposals..."
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] flex-1 min-w-0"
                   />
                 </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {proposals.map((proposal) => (
-                      <tr key={proposal.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{proposal.title}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{proposal.student}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{proposal.department}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(proposal.status)}`}>
-                            {proposal.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{proposal.createdAt}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Button
-                            onClick={() => {
-                              setSelectedProposal(proposal);
-                              setShowProposalModal(true);
-                            }}
-                            className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-3 py-1"
-                          >
-                            Review
-                          </Button>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                        <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                        <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {proposals.map((proposal) => (
+                        <tr key={proposal.id} className="hover:bg-gray-50">
+                          <td className="px-3 sm:px-6 py-4 text-sm font-medium text-gray-900">
+                            <div>
+                              <div className="font-medium">{proposal.title}</div>
+                              <div className="text-xs text-gray-500 md:hidden">
+                                Student: {proposal.student} • Date: {proposal.createdAt}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">{proposal.student}</td>
+                          <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">{proposal.department}</td>
+                          <td className="px-3 sm:px-6 py-4">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(proposal.status)}`}>
+                              {proposal.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="hidden sm:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">{proposal.createdAt}</td>
+                          <td className="px-3 sm:px-6 py-4 text-sm font-medium">
+                            <Button
+                              onClick={() => {
+                                setSelectedProposal(proposal);
+                                setShowProposalModal(true);
+                              }}
+                              className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-2 sm:px-3 py-1"
+                            >
+                              Review
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -730,20 +822,36 @@ export default function SRCDashboard() {
 
           {/* Complaint Detail Modal */}
           {showComplaintModal && selectedComplaint && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div id="complaint-modal" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Complaint Details</h3>
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-gray-900">Complaint Details</h3>
+                    <button
+                      onClick={() => setShowComplaintModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <span className="sr-only">Close</span>
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <div className="p-6 space-y-4">
+                <form className="p-6 space-y-4">
                   <div>
                     <h4 className="font-medium text-gray-900">{selectedComplaint.title}</h4>
-                    <p className="text-sm text-gray-600 mt-1">Submitted by {selectedComplaint.student} from {selectedComplaint.department}</p>
+                    <p className="text-sm text-gray-600 mt-1">Submitted by {selectedComplaint.student?.full_name} from {selectedComplaint.student?.department}</p>
+                    <p className="text-sm text-gray-600 mt-2">{selectedComplaint.description}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
+                      <select 
+                        name="status"
+                        defaultValue={selectedComplaint.status}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+                      >
                         <option value="pending">Pending</option>
                         <option value="in_progress">In Progress</option>
                         <option value="resolved">Resolved</option>
@@ -752,7 +860,11 @@ export default function SRCDashboard() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
+                      <select 
+                        name="priority"
+                        defaultValue={selectedComplaint.priority}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+                      >
                         <option value="low">Low</option>
                         <option value="medium">Medium</option>
                         <option value="high">High</option>
@@ -763,23 +875,30 @@ export default function SRCDashboard() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Response</label>
                     <textarea
+                      name="response"
                       rows={4}
+                      defaultValue={selectedComplaint.response || ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
                       placeholder="Enter your response to the student..."
                     />
                   </div>
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button
+                      type="button"
                       onClick={() => setShowComplaintModal(false)}
                       className="bg-gray-300 hover:bg-gray-400 text-gray-700"
                     >
                       Cancel
                     </Button>
-                    <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white">
+                    <Button 
+                      type="button"
+                      onClick={handleUpdateComplaint}
+                      className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    >
                       Update Complaint
                     </Button>
                   </div>
-                </div>
+                </form>
               </div>
             </div>
           )}

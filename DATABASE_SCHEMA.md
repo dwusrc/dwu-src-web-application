@@ -382,6 +382,16 @@ CREATE POLICY "SRC and Admin can update complaints" ON complaints
       WHERE id = auth.uid() AND role IN ('src', 'admin')
     )
   );
+
+-- Students can update their own complaints
+CREATE POLICY "Students can update own complaints" ON complaints
+  FOR UPDATE USING (
+    student_id = auth.uid() AND
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'student'
+    )
+  );
 ```
 
 ### Chat RLS Policies

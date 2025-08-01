@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { NewsPost, NewsCategory, PostStatus } from '@/types/supabase';
 import { newsPostsApi, newsCategoriesApi, imageUploadApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -118,25 +117,27 @@ export default function NewsManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="space-y-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">News Management</h2>
           <p className="text-gray-600">Manage news posts and announcements</p>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-        >
-          Create New Post
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 sm:items-center">
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-[#359d49] hover:bg-[#2a6b39] text-white w-full sm:w-auto"
+          >
+            Create New Post
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] sm:w-auto"
         >
           <option value="all">All Posts</option>
           <option value="published">Published</option>
@@ -155,25 +156,25 @@ export default function NewsManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Title
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Featured
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Views
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -181,49 +182,50 @@ export default function NewsManagement() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredPosts.map((post) => (
                 <tr key={post.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-4">
                     <div className="flex items-center">
                       {post.image_url && (
-                        <Image
+                        <img
                           src={post.image_url}
                           alt={post.title}
-                          width={40}
-                          height={40}
                           className="h-10 w-10 rounded-lg object-cover mr-3"
                         />
                       )}
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-900 truncate">
                           {post.title}
                         </div>
                         {post.excerpt && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                          <div className="text-sm text-gray-500 truncate">
                             {post.excerpt}
                           </div>
                         )}
+                        <div className="text-xs text-gray-500 md:hidden">
+                          Category: {getCategoryName(post.category_id)} • Views: {post.view_count || 0}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                     {getCategoryName(post.category_id)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-4">
                     {getStatusBadge(post.status)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="hidden sm:table-cell px-3 sm:px-6 py-4">
                     {post.featured ? (
                       <span className="text-[#ddc753]">★ Featured</span>
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                     {post.view_count || 0}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                     {new Date(post.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-3 sm:px-6 py-4 text-sm font-medium text-right">
                     <div className="flex gap-2 justify-end">
                       <Button
                         onClick={() => {
@@ -426,11 +428,9 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
               />
               {uploading && <p className="text-sm text-gray-500 mt-1">Uploading...</p>}
               {formData.image_url && (
-                <Image
+                <img
                   src={formData.image_url}
                   alt="Preview"
-                  width={80}
-                  height={80}
                   className="mt-2 h-20 w-20 object-cover rounded"
                 />
               )}
