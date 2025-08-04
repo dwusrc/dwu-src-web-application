@@ -6,7 +6,7 @@ import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
 import NewsManagement from '@/app/components/news/news-management';
 import ComplaintList from '@/app/components/complaints/complaint-list';
-import ComplaintView from '@/app/components/forms/complaint-view';
+
 import { Complaint, ComplaintStatus } from '@/types/supabase';
 import { useSession } from '@/app/contexts/session-context';
 

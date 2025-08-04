@@ -92,7 +92,7 @@ export default function ComplaintForm({
 
     try {
       await onSubmit(formData);
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to submit complaint. Please try again.');
     }
   };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { NewsPost, NewsCategory, PostStatus } from '@/types/supabase';
 import { newsPostsApi, newsCategoriesApi, imageUploadApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -29,7 +30,7 @@ export default function NewsManagement() {
       ]);
       setPosts(postsData);
       setCategories(categoriesData);
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to load data');
     } finally {
       setLoading(false);
@@ -51,7 +52,7 @@ export default function NewsManagement() {
       const newPost = await newsPostsApi.createPost(postData);
       setPosts(prev => [newPost, ...prev]);
       setShowCreateModal(false);
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to create post');
     }
   };
@@ -62,7 +63,7 @@ export default function NewsManagement() {
       setPosts(prev => prev.map(post => post.id === id ? updatedPost : post));
       setShowEditModal(false);
       setSelectedPost(null);
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to update post');
     }
   };
@@ -73,7 +74,7 @@ export default function NewsManagement() {
     try {
       await newsPostsApi.deletePost(id);
       setPosts(prev => prev.filter(post => post.id !== id));
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to delete post');
     }
   };
@@ -185,11 +186,14 @@ export default function NewsManagement() {
                   <td className="px-3 sm:px-6 py-4">
                     <div className="flex items-center">
                       {post.image_url && (
-                        <img
-                          src={post.image_url}
-                          alt={post.title}
-                          className="h-10 w-10 rounded-lg object-cover mr-3"
-                        />
+                        <div className="relative h-10 w-10 mr-3">
+                          <Image
+                            src={post.image_url}
+                            alt={post.title}
+                            fill
+                            className="rounded-lg object-cover"
+                          />
+                        </div>
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium text-gray-900 truncate">
@@ -332,7 +336,7 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
       setUploading(true);
       const imageUrl = await imageUploadApi.uploadImage(file);
       setFormData(prev => ({ ...prev, image_url: imageUrl }));
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to upload image');
     } finally {
       setUploading(false);
@@ -428,11 +432,14 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
               />
               {uploading && <p className="text-sm text-gray-500 mt-1">Uploading...</p>}
               {formData.image_url && (
-                <img
-                  src={formData.image_url}
-                  alt="Preview"
-                  className="mt-2 h-20 w-20 object-cover rounded"
-                />
+                <div className="relative mt-2 h-20 w-20">
+                  <Image
+                    src={formData.image_url}
+                    alt="Preview"
+                    fill
+                    className="object-cover rounded"
+                  />
+                </div>
               )}
             </div>
 

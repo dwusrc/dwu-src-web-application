@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
         total: count || 0
       }
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
     // This could be implemented later to notify SRC members of new complaints
 
     return NextResponse.json({ complaint: data }, { status: 201 });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

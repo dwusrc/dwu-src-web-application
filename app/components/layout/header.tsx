@@ -2,8 +2,9 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSession, useIsAuthenticated } from '@/app/contexts/session-context';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface HeaderProps {
   className?: string;
@@ -13,11 +14,63 @@ export function Header({ className }: HeaderProps) {
   const { user, profile, signOut } = useSession();
   const { isAuthenticated } = useIsAuthenticated();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const router = useRouter();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
+  // Close menu when pressing Escape key
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [showUserMenu]);
 
   const handleSignOut = async () => {
-    await signOut();
+    if (isSigningOut) return; // Prevent multiple clicks
+    
+    setIsSigningOut(true);
     setShowUserMenu(false);
-    window.location.href = '/'; // Force full reload
+    
+    try {
+      await signOut();
+      
+      // Use Next.js router for navigation instead of window.location
+      router.push('/');
+      router.refresh(); // Force a refresh of the page data
+      
+    } catch (_error) {
+      // Even if sign out fails, redirect to home page
+      router.push('/');
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   return (
@@ -56,10 +109,11 @@ export function Header({ className }: HeaderProps) {
 
       <div className="flex items-center gap-4">
         {isAuthenticated ? (
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-2 bg-white text-[#359d49] font-semibold px-4 py-2 rounded-full shadow hover:bg-[#ddc753] hover:text-[#2a6b39] transition-colors"
+              disabled={isSigningOut}
             >
               <span className="hidden sm:inline">
                 {profile?.full_name || user?.email?.split('@')[0]}
@@ -113,9 +167,14 @@ export function Header({ className }: HeaderProps) {
 
                 <button
                   onClick={handleSignOut}
-                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
+                  disabled={isSigningOut}
+                  className={`block w-full text-left px-4 py-2 text-sm cursor-pointer transition-colors ${
+                    isSigningOut 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : 'text-red-600 hover:bg-gray-100'
+                  }`}
                 >
-                  Sign Out
+                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
                 </button>
               </div>
             )}

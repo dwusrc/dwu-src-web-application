@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { AuthenticatedRoute } from '@/app/components/auth/protected-route';
 import { useSession } from '@/app/contexts/session-context';
@@ -14,18 +14,26 @@ interface ProfileFormState {
 
 // The main content of the profile page
 function ProfilePageContent() {
-  const { profile, user, loading, refreshProfile } = useSession();
+  const { profile, user, loading } = useSession();
   const [formState, setFormState] = useState<ProfileFormState>({
     full_name: '',
     phone: '',
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const mountedRef = useRef(true);
   
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // Populate form when profile data loads
   useEffect(() => {
-    if (profile) {
+    if (profile && mountedRef.current) {
       setFormState({
         full_name: profile.full_name || '',
         phone: profile.phone || '',
@@ -35,22 +43,42 @@ function ProfilePageContent() {
 
   useEffect(() => {
     const getSignedUrl = async () => {
+      if (!mountedRef.current) return;
+      
       if (profile?.avatar_url) {
-        const path = profile.avatar_url; // Use the storage path directly
+        const path = profile.avatar_url;
         if (path) {
-          const { data } = await supabase.storage
-            .from('avatars')
-            .createSignedUrl(path, 60 * 60 * 24 * 7); // 1 week expiry
-          if (data?.signedUrl) {
-            setAvatarSrc(data.signedUrl);
-          } else {
-            setAvatarSrc(null);
+          try {
+            const { data, error } = await supabase.storage
+              .from('avatars')
+              .createSignedUrl(path, 60 * 60 * 24 * 7);
+            
+            if (error) {
+              setAvatarSrc(null);
+              return;
+            }
+            
+            if (mountedRef.current) {
+              if (data?.signedUrl) {
+                setAvatarSrc(data.signedUrl);
+              } else {
+                setAvatarSrc(null);
+              }
+            }
+          } catch (error) {
+            if (mountedRef.current) {
+              setAvatarSrc(null);
+            }
           }
         } else {
-          setAvatarSrc(null);
+          if (mountedRef.current) {
+            setAvatarSrc(null);
+          }
         }
       } else {
-        setAvatarSrc(null);
+        if (mountedRef.current) {
+          setAvatarSrc(null);
+        }
       }
     };
     getSignedUrl();
@@ -60,44 +88,12 @@ function ProfilePageContent() {
     const { name, value } = e.target;
     setFormState(prevState => ({ ...prevState, [name]: value }));
   };
-
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage(null);
-
-    try {
-      const response = await fetch('/api/profile/update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formState),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update profile.');
-      }
-
-      setMessage({ type: 'success', text: result.message });
-      await refreshProfile();
-      setIsEditing(false);
-
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        setMessage({ type: 'error', text: error.message });
-      } else {
-        setMessage({ type: 'error', text: 'An unknown error occurred.' });
-      }
-    }
-  };
   
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || isSubmitting) return;
 
-    setMessage(null);
+    setIsSubmitting(true);
 
     try {
       // 1. Get a signed URL for the upload
@@ -134,15 +130,12 @@ function ProfilePageContent() {
       const result = await profileUpdateResponse.json();
       if (!profileUpdateResponse.ok) throw new Error(result.error || 'Failed to update avatar URL.');
 
-      setMessage({ type: 'success', text: 'Avatar updated successfully!' });
-      await refreshProfile();
+      window.location.reload();
 
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        setMessage({ type: 'error', text: error.message });
-      } else {
-        setMessage({ type: 'error', text: 'An unknown error occurred.' });
-      }
+      alert('Error updating avatar');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -158,12 +151,6 @@ function ProfilePageContent() {
     <PageLayout>
       <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-extrabold text-[#2a6b39] mb-8">Your Profile</h1>
-
-        {message && (
-          <div className={`p-4 mb-6 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-            {message.text}
-          </div>
-        )}
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Left Column: Avatar */}
@@ -174,10 +161,21 @@ function ProfilePageContent() {
                 src={avatarSrc || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.full_name}`}
                 alt="Avatar"
                 className="rounded-full w-full h-full object-cover border-4 border-[#359d49]"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = `https://api.dicebear.com/8.x/initials/svg?seed=${profile.full_name}`;
+                }}
               />
               <label htmlFor="avatar-upload" className="absolute -bottom-2 -right-2 bg-white p-2 rounded-full shadow-lg cursor-pointer hover:bg-gray-100 border">
                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2a6b39" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <input id="avatar-upload" type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                <input 
+                  id="avatar-upload" 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleAvatarUpload}
+                  disabled={isSubmitting}
+                />
               </label>
             </div>
             <h2 className="text-2xl font-bold text-gray-800">{profile.full_name}</h2>
@@ -186,7 +184,7 @@ function ProfilePageContent() {
 
           {/* Right Column: Profile Form */}
           <div className="md:col-span-2 bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
-            <form onSubmit={handleFormSubmit}>
+            <div>
               <div className="space-y-6">
                 {/* Read-only fields */}
                 <div>
@@ -209,6 +207,7 @@ function ProfilePageContent() {
                     value={formState.full_name}
                     onChange={handleInputChange}
                     onFocus={() => setIsEditing(true)}
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div>
@@ -221,6 +220,7 @@ function ProfilePageContent() {
                     value={formState.phone}
                     onChange={handleInputChange}
                     onFocus={() => setIsEditing(true)}
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -228,14 +228,44 @@ function ProfilePageContent() {
               {isEditing && (
                  <div className="mt-8 text-right">
                   <button
-                    type="submit"
-                    className="bg-[#359d49] text-white font-bold py-2 px-6 rounded-lg hover:bg-[#2a6b39] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#359d49] transition-colors"
+                    type="button"
+                    onClick={async () => {
+                      setIsSubmitting(true);
+                      
+                      try {
+                        const response = await fetch('/api/profile/update', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify(formState),
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                          window.location.reload();
+                        } else {
+                          alert('Error: ' + result.error);
+                        }
+                      } catch (error) {
+                        alert('Error updating profile');
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    className={`font-bold py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#359d49] transition-colors ${
+                      isSubmitting 
+                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                        : 'bg-[#359d49] text-white hover:bg-[#2a6b39]'
+                    }`}
                   >
-                    Save Changes
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               )}
-            </form>
+            </div>
           </div>
         </div>
       </div>

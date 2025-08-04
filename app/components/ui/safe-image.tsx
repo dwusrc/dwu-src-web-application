@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface SafeImageProps {
   src: string;
@@ -9,8 +10,6 @@ interface SafeImageProps {
   height?: number;
   className?: string;
   priority?: boolean;
-  loading?: 'lazy' | 'eager';
-  sizes?: string;
   fallbackIcon?: React.ReactNode;
   fallbackText?: string;
 }
@@ -22,8 +21,6 @@ export default function SafeImage({
   height,
   className = '',
   priority = false,
-  loading = 'lazy',
-  sizes,
   fallbackIcon,
   fallbackText = 'No image available'
 }: SafeImageProps) {
@@ -52,7 +49,7 @@ export default function SafeImage({
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
         </div>
       )}
-      <img
+      <Image
         src={src}
         alt={alt}
         width={width}
@@ -63,7 +60,7 @@ export default function SafeImage({
           setImageError(true);
           setImageLoading(false);
         }}
-        loading={loading}
+        priority={priority}
       />
     </div>
   );

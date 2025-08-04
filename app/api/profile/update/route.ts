@@ -47,16 +47,22 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
      })
     .eq('id', user.id)
-    .select('*');
+    .select('*')
+    .single();
 
   if (error) {
     return NextResponse.json({ error: 'Failed to update profile.' }, { status: 500 });
   }
 
-  if (!data || data.length === 0) {
+  if (!data) {
     return NextResponse.json({ error: 'No profile was updated. Check RLS policies and user ID.' }, { status: 403 });
   }
 
-  // 4. Return a success response
-  return NextResponse.json({ message: 'Profile updated successfully.' });
+  // Return a success response with the updated profile data
+  const response = { 
+    message: 'Profile updated successfully.',
+    profile: data
+  };
+  
+  return NextResponse.json(response);
 } 

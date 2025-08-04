@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DWU SRC - Student Representative Council",
+  title: "DWU SRC - Divine Word University Student Representative Council",
   description: "Divine Word University Student Representative Council - News, Complaints, Forum, and Student Services",
 };
 
@@ -29,7 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SessionProvider>
-        {children}
+          {children}
         </SessionProvider>
       </body>
     </html>

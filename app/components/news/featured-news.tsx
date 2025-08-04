@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { NewsPost } from '@/types/supabase';
 import { newsPostsApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -28,7 +29,7 @@ export default function FeaturedNews({ limit = 3, showViewAll = true }: Featured
         offset: 0
       });
       setPosts(postsData);
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to load featured posts');
     } finally {
       setLoading(false);
@@ -111,10 +112,11 @@ function FeaturedNewsCard({ post, isMain, formatDate }: FeaturedNewsCardProps) {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
             </div>
           )}
-          <img
+          <Image
             src={post.image_url}
             alt={post.title}
-            className={`w-full h-full object-cover hover:scale-105 transition-transform duration-300 ${
+            fill
+            className={`object-cover hover:scale-105 transition-transform duration-300 ${
               imageLoading ? 'opacity-0' : 'opacity-100'
             }`}
             onLoad={() => setImageLoading(false)}
@@ -122,7 +124,7 @@ function FeaturedNewsCard({ post, isMain, formatDate }: FeaturedNewsCardProps) {
               setImageError(true);
               setImageLoading(false);
             }}
-            loading={isMain ? "eager" : "lazy"}
+            priority={isMain}
           />
         </div>
       )}

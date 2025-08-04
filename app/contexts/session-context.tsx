@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { clearSessionData } from '@/lib/utils';
 
 // User profile interface matching our database schema
 interface UserProfile {
@@ -28,6 +29,7 @@ interface SessionContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateProfile: (profileData: UserProfile) => void;
 }
 
 // Create context
@@ -43,82 +45,152 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Fetch user profile from database
   const fetchProfile = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId);
+        .eq('id', userId)
+        .single();
 
-      if (Array.isArray(data) && data.length > 0) {
-        return data[0] as UserProfile;
+      if (error) {
+        return null;
       }
 
-      return null;
-    } catch {
-      // Optionally, you can show a user-facing error here
+      return data as UserProfile;
+    } catch (error) {
       return null;
     }
   };
 
-  // Refresh profile data
-  const refreshProfile = async () => {
-    if (user) {
-      const profileData = await fetchProfile(user.id);
-      setProfile(profileData);
-    }
-  };
+  // Direct profile update function
+  const updateProfile = useCallback((profileData: UserProfile) => {
+    setProfile(profileData);
+  }, []);
 
-  // Sign out function
-  const signOut = async () => {
+  // Enhanced refresh profile data function
+  const refreshProfile = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
     try {
-      await supabase.auth.signOut();
+      const profileData = await fetchProfile(user.id);
+      
+      if (profileData) {
+        setProfile(profileData);
+      }
+    } catch (error) {
+      // Silent error handling
+    }
+  }, [user]);
+
+  // Enhanced sign out function with better error handling and cleanup
+  const signOut = useCallback(async () => {
+    // Prevent multiple sign out attempts
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+    
+    try {
+      // Clear local state first
       setUser(null);
       setProfile(null);
       setSession(null);
-    } catch {
-      // Silent error handling for sign out
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        // Even if there's an error, we should still clear the session
+      }
+      
+      // Use utility function to clear all session data
+      clearSessionData();
+      
+      // Use router.push for client-side navigation instead of window.location
+      // This will be handled by the component that calls signOut
+      
+    } catch (error) {
+      // Ensure state is cleared even if there's an error
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      clearSessionData();
+    } finally {
+      setIsSigningOut(false);
     }
-  };
+  }, [isSigningOut]);
 
   // Initialize session and user data
   useEffect(() => {
+    let mounted = true;
+    let authSubscription: { data: { subscription: { unsubscribe: () => void } } } | null = null;
+
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const profileData = await fetchProfile(session.user.id);
-        setProfile(profileData);
-      }
-
-      setLoading(false);
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
           const profileData = await fetchProfile(session.user.id);
-          setProfile(profileData);
-        } else {
-          setProfile(null);
+          if (mounted) {
+            setProfile(profileData);
+          }
         }
 
         setLoading(false);
+      } catch (error) {
+        setLoading(false);
       }
-    );
+    };
 
-    return () => subscription.unsubscribe();
+    getInitialSession();
+
+    // Listen for auth changes
+    try {
+      authSubscription = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (!mounted) return;
+          
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          if (session?.user) {
+            const profileData = await fetchProfile(session.user.id);
+            if (mounted) {
+              setProfile(profileData);
+            }
+          } else {
+            if (mounted) {
+              setProfile(null);
+            }
+          }
+
+          setLoading(false);
+        }
+      );
+    } catch (error) {
+      setLoading(false);
+    }
+
+    // Cleanup function
+    return () => {
+      mounted = false;
+      if (authSubscription?.data?.subscription) {
+        authSubscription.data.subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const value: SessionContextType = {
@@ -128,6 +200,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     loading,
     signOut,
     refreshProfile,
+    updateProfile,
   };
 
   return (

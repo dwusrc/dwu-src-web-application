@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { NewsPost, NewsCategory } from '@/types/supabase';
 import { newsPostsApi, newsCategoriesApi } from '@/lib/news-api';
 import { Button } from '@/app/components/ui/button';
@@ -46,7 +47,7 @@ export default function NewsDisplay({
       
       setPosts(postsData);
       setTotalPosts(postsData.length); // In a real app, you'd get total count from API
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to load posts');
     } finally {
       setLoading(false);
@@ -57,7 +58,7 @@ export default function NewsDisplay({
     try {
       const categoriesData = await newsCategoriesApi.getCategories();
       setCategories(categoriesData);
-    } catch (error) {
+    } catch (_error) {
       alert('Failed to load categories');
     }
   };
@@ -195,10 +196,11 @@ function NewsCard({ post, getCategoryName, getCategoryColor, formatDate }: NewsC
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
             </div>
           )}
-          <img
+          <Image
             src={post.image_url}
             alt={post.title}
-            className={`w-full h-full object-cover hover:scale-105 transition-transform duration-300 ${
+            fill
+            className={`object-cover hover:scale-105 transition-transform duration-300 ${
               imageLoading ? 'opacity-0' : 'opacity-100'
             }`}
             onLoad={() => setImageLoading(false)}
@@ -206,7 +208,6 @@ function NewsCard({ post, getCategoryName, getCategoryColor, formatDate }: NewsC
               setImageError(true);
               setImageLoading(false);
             }}
-            loading="lazy"
           />
         </div>
       )}
