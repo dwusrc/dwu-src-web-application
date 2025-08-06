@@ -5,11 +5,13 @@ export interface ChatConversation {
   src_member_id: string;
   created_at: string;
   updated_at: string;
+  messages?: ChatMessage[];
   src_member?: {
     id: string;
     full_name: string;
     email: string;
     avatar_url?: string;
+    role?: string;
   };
   student?: {
     id: string;
@@ -27,6 +29,7 @@ export interface ChatMessage {
   content: string;
   message_type: 'text' | 'image' | 'file';
   created_at: string;
+  is_read: boolean;
   sender_profile?: {
     id: string;
     full_name: string;
@@ -103,6 +106,20 @@ export class ChatApi {
       },
       body: JSON.stringify({ src_member_id: srcMemberId }),
     });
+
+    if (response.status === 409) {
+      // Conversation already exists, get the existing conversation
+      const errorData = await response.json();
+      if (errorData.conversation_id) {
+        // Fetch the existing conversation
+        const conversations = await this.getConversations();
+        const existingConversation = conversations.find(conv => conv.id === errorData.conversation_id);
+        if (existingConversation) {
+          return existingConversation;
+        }
+      }
+      throw new Error('Conversation already exists but could not be retrieved');
+    }
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -188,6 +205,20 @@ export class ChatApi {
     }
     const data: ParticipantsResponse = await response.json();
     return data.participants;
+  }
+
+  // Mark a message as read
+  async markMessageAsRead(messageId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/messages/${messageId}/read`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to mark message as read');
+    }
   }
 }
 

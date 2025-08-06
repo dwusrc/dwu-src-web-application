@@ -13,6 +13,7 @@ const FeaturedNews = lazy(() => import('@/app/components/news/featured-news'));
 const ComplaintForm = lazy(() => import('@/app/components/forms/complaint-form'));
 const ComplaintList = lazy(() => import('@/app/components/complaints/complaint-list'));
 const ComplaintView = lazy(() => import('@/app/components/forms/complaint-view'));
+const ChatInterface = lazy(() => import('@/app/components/chat/chat-interface'));
 
 // Loading component for lazy-loaded components
 const LoadingSpinner = () => (
@@ -235,6 +236,41 @@ export default function StudentDashboard() {
     }
   }, [activeTab]);
 
+  // Initialize mobile navigation arrows
+  useEffect(() => {
+    const updateArrows = () => {
+      const container = document.getElementById('mobile-tabs-container');
+      const leftArrow = document.getElementById('left-arrow');
+      const rightArrow = document.getElementById('right-arrow');
+      
+      if (container && leftArrow && rightArrow) {
+        // Check if scrolling is needed
+        const hasOverflow = container.scrollWidth > container.clientWidth;
+        
+        if (hasOverflow) {
+          // Show right arrow initially if there's overflow
+          rightArrow.style.display = 'block';
+          leftArrow.style.display = 'none';
+        } else {
+          // Hide both arrows if no overflow
+          leftArrow.style.display = 'none';
+          rightArrow.style.display = 'none';
+        }
+      }
+    };
+
+    // Initial check
+    updateArrows();
+
+    // Add resize listener
+    window.addEventListener('resize', updateArrows);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', updateArrows);
+    };
+  }, []);
+
   const tabs = [
     { id: 'overview', name: 'Overview', shortName: 'Overview', icon: '📊' },
     { id: 'news', name: 'News & Updates', shortName: 'News', icon: '📢' },
@@ -259,8 +295,9 @@ export default function StudentDashboard() {
 
           {/* Navigation Tabs */}
           <div className="mb-8">
-            <nav className="flex space-x-8">
-              <div className="flex space-x-1">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:block">
+              <div className="flex space-x-8">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -271,12 +308,97 @@ export default function StudentDashboard() {
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <span className="mr-1 sm:mr-2">{tab.icon}</span>
-                    <span className="hidden sm:inline">{tab.name}</span>
-                    <span className="sm:hidden">{tab.shortName}</span>
+                    <span className="mr-2">{tab.icon}</span>
+                    <span>{tab.name}</span>
                   </button>
                 ))}
               </div>
+            </nav>
+
+            {/* Mobile Navigation - Horizontal Scrollable */}
+            <nav className="md:hidden">
+              <div className="relative">
+                {/* Left Arrow */}
+                <button
+                  onClick={() => {
+                    const container = document.getElementById('mobile-tabs-container');
+                    if (container) {
+                      container.scrollBy({ left: -200, behavior: 'smooth' });
+                    }
+                  }}
+                  className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full p-2 shadow-lg hover:bg-white transition-all duration-200"
+                  style={{ display: 'none' }}
+                  id="left-arrow"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                {/* Right Arrow */}
+                <button
+                  onClick={() => {
+                    const container = document.getElementById('mobile-tabs-container');
+                    if (container) {
+                      container.scrollBy({ left: 200, behavior: 'smooth' });
+                    }
+                  }}
+                  className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full p-2 shadow-lg hover:bg-white transition-all duration-200"
+                  style={{ display: 'none' }}
+                  id="right-arrow"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <div 
+                  id="mobile-tabs-container"
+                  className="flex space-x-2 overflow-x-auto pb-2 -mx-4 px-4 scroll-smooth" 
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  onScroll={(e) => {
+                    const container = e.currentTarget;
+                    const leftArrow = document.getElementById('left-arrow');
+                    const rightArrow = document.getElementById('right-arrow');
+                    
+                    if (leftArrow && rightArrow) {
+                      // Show/hide left arrow
+                      if (container.scrollLeft > 0) {
+                        leftArrow.style.display = 'block';
+                      } else {
+                        leftArrow.style.display = 'none';
+                      }
+                      
+                      // Show/hide right arrow
+                      if (container.scrollLeft < container.scrollWidth - container.clientWidth - 1) {
+                        rightArrow.style.display = 'block';
+                      } else {
+                        rightArrow.style.display = 'none';
+                      }
+                    }
+                  }}
+                >
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-[#359d49] text-[#359d49] bg-[#359d49]/5'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="mr-1">{tab.icon}</span>
+                    <span>{tab.shortName}</span>
+                  </button>
+                ))}
+                </div>
+              </div>
+              <style jsx>{`
+                .overflow-x-auto::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
             </nav>
           </div>
 
@@ -455,37 +577,19 @@ export default function StudentDashboard() {
 
           {/* Chat Tab */}
           {activeTab === 'chat' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Chat Messages</h2>
-                <Button
-                  onClick={() => setShowChatModal(true)}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  Start New Chat
-                </Button>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="space-y-4">
-                  {chatMessages.map((message) => (
-                    <div key={message.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{message.from}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{message.message}</p>
-                          <p className="text-xs text-gray-500 mt-2">{message.timestamp}</p>
-                        </div>
-                        {message.unread && (
-                          <span className="inline-block mt-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                            New
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+            <Suspense fallback={<LoadingSpinner />}>
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">Chat with SRC Members</h2>
+                </div>
+                <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: '600px' }}>
+                  <ChatInterface
+                    currentUserId={session?.user?.id || ''}
+                    userRole="student"
+                  />
                 </div>
               </div>
-            </div>
+            </Suspense>
           )}
 
           {/* Forums Tab */}
