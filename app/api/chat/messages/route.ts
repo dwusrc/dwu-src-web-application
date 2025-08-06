@@ -135,8 +135,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conversation ID and content are required' }, { status: 400 });
     }
 
-    console.log('Creating message:', { conversation_id, content, message_type });
-
     // Get user profile to determine role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -147,8 +145,6 @@ export async function POST(request: NextRequest) {
     if (profileError || !profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
-
-    console.log('User profile for message creation:', { role: profile.role, id: profile.id });
 
     // Verify user has access to this conversation
     const { data: conversation, error: conversationError } = await supabase
@@ -180,8 +176,6 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString()
     };
 
-    console.log('Attempting to create message with data:', messageData);
-
     const { data: message, error: createError } = await supabase
       .from('chat_messages')
       .insert(messageData)
@@ -195,8 +189,6 @@ export async function POST(request: NextRequest) {
         details: createError.message 
       }, { status: 500 });
     }
-
-    console.log('Message created successfully:', message);
 
     // Update conversation's updated_at timestamp
     const { error: updateError } = await supabase

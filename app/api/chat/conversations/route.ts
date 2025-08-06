@@ -138,8 +138,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SRC member ID is required' }, { status: 400 });
     }
 
-    console.log('Creating conversation with src_member_id:', src_member_id);
-
     // Get user profile to determine role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -155,8 +153,6 @@ export async function POST(request: NextRequest) {
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
-
-    console.log('User profile for conversation creation:', { role: profile.role, id: profile.id });
 
     // Only students can create conversations
     if (profile.role !== 'student') {
@@ -194,8 +190,6 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     };
 
-    console.log('Attempting to create conversation with data:', conversationData);
-
     const { data: conversation, error: createError } = await supabase
       .from('chat_conversations')
       .insert(conversationData)
@@ -209,8 +203,6 @@ export async function POST(request: NextRequest) {
         details: createError.message 
       }, { status: 500 });
     }
-
-    console.log('Conversation created successfully:', conversation);
 
     return NextResponse.json({ conversation }, { status: 201 });
   } catch (error) {

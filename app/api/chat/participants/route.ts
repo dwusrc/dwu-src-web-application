@@ -34,8 +34,6 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('User authenticated:', user.id);
-
     // Get user profile to determine role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -51,8 +49,6 @@ export async function GET(_request: NextRequest) {
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
-
-    console.log('User profile:', { role: profile.role, student_id: profile.student_id });
 
     // Only students can see available SRC members
     if (profile.role !== 'student') {
@@ -78,11 +74,8 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch SRC members' }, { status: 500 });
     }
 
-    console.log('SRC members found:', srcMembers?.length || 0);
-
     // If no SRC members found, return empty array
     if (!srcMembers || srcMembers.length === 0) {
-      console.log('No SRC members found in database');
       return NextResponse.json({ 
         participants: [],
         total: 0
@@ -101,8 +94,6 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 });
     }
 
-    console.log('Existing conversations:', existingConversations?.length || 0);
-
     // Create a set of SRC member IDs that the student already has conversations with
     const existingSrcMemberIds = new Set(
       existingConversations?.map(conv => conv.src_member_id) || []
@@ -117,8 +108,6 @@ export async function GET(_request: NextRequest) {
         conv => conv.src_member_id === member.id
       )?.id || null
     }));
-
-    console.log('Returning participants:', participantsWithStatus.length);
 
     return NextResponse.json({ 
       participants: participantsWithStatus,
