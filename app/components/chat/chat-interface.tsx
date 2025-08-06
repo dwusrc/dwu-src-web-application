@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChatConversation, ChatParticipant, ChatMessage } from '@/lib/chat-api';
 import { chatApi } from '@/lib/chat-api';
 import { ChatConversationList } from './chat-conversation-list';
@@ -10,7 +10,7 @@ import { ChatSidebar } from './chat-sidebar';
 
 interface ChatInterfaceProps {
   currentUserId: string;
-  userRole: 'student' | 'src_member' | 'admin';
+  userRole?: 'student' | 'src_member' | 'admin';
 }
 
 function ChatInterface({ currentUserId, userRole }: ChatInterfaceProps) {

@@ -24,16 +24,17 @@ export function ChatMessageList({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null | undefined>(null);
 
   useEffect(() => {
     if (conversation) {
       fetchMessages();
-      subscribeToMessages();
+      subscriptionRef.current = subscribeToMessages();
     }
     
     return () => {
       // Cleanup subscription when component unmounts or conversation changes
-      if (conversation) {
+      if (subscriptionRef.current) {
         unsubscribeFromMessages();
       }
     };
@@ -112,9 +113,10 @@ export function ChatMessageList({
   };
 
   const unsubscribeFromMessages = () => {
-    if (!conversation) return;
-    const channel = supabase.channel(`chat_messages_${conversation.id}`);
-    supabase.removeChannel(channel);
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
   };
 
   const markMessageAsRead = async (messageId: string) => {
@@ -181,26 +183,34 @@ export function ChatMessageList({
       {/* Conversation Header */}
       <div className="flex items-center p-4 border-b bg-white flex-shrink-0">
         <div className="w-10 h-10 bg-[#359d49] rounded-full flex items-center justify-center text-white font-medium">
-          {conversation.src_member?.full_name?.charAt(0) || 'S'}
+          {conversation.student?.full_name?.charAt(0) || conversation.src_member?.full_name?.charAt(0) || 'U'}
         </div>
-                 <div className="ml-3">
-           <h3 className="font-medium text-gray-900">
-             {conversation.src_member?.full_name || 'SRC Member'}
-           </h3>
-           <div className="flex items-center gap-2">
-             <span className="text-sm text-gray-500">
-               {conversation.src_member?.role || 'SRC Member'}
-             </span>
-             {conversation.src_member?.src_department && (
-               <>
-                 <span className="text-gray-300">•</span>
-                 <span className="text-xs px-2 py-1 bg-[#359d49]/10 text-[#359d49] rounded-full">
-                   {conversation.src_member.src_department}
-                 </span>
-               </>
-             )}
-           </div>
-         </div>
+        <div className="ml-3">
+          <h3 className="font-medium text-gray-900">
+            {conversation.student?.full_name || conversation.src_member?.full_name || 'User'}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">
+              {conversation.student?.department || conversation.src_member?.src_department || 'User'}
+            </span>
+            {conversation.student?.year_level && (
+              <>
+                <span className="text-gray-300">•</span>
+                <span className="text-xs px-2 py-1 bg-[#359d49]/10 text-[#359d49] rounded-full">
+                  Year {conversation.student.year_level}
+                </span>
+              </>
+            )}
+            {conversation.src_member?.src_department && !conversation.student && (
+              <>
+                <span className="text-gray-300">•</span>
+                <span className="text-xs px-2 py-1 bg-[#359d49]/10 text-[#359d49] rounded-full">
+                  {conversation.src_member.src_department}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Messages - Fixed height with scroll */}

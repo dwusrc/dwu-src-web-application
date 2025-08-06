@@ -6,7 +6,7 @@ import { chatApi } from '@/lib/chat-api';
 
 interface ChatInputProps {
   conversation: ChatConversation | null;
-  currentUserId: string;
+  currentUserId?: string;
   onMessageSent?: (message?: ChatMessage) => void;
   disabled?: boolean;
 }

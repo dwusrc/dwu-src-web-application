@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   // Prepare update data
-  const updateData: any = { 
+  const updateData: { role: string; updated_at: string; src_department?: string | null } = { 
     role,
     updated_at: new Date().toISOString()
   };

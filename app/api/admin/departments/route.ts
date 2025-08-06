@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ department });
-  } catch (error) {
+      } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 } 

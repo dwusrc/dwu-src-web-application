@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -132,11 +132,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { src_member_id } = body;
-
-    if (!src_member_id) {
-      return NextResponse.json({ error: 'SRC member ID is required' }, { status: 400 });
-    }
+    const { src_member_id, student_id } = body;
 
     // Get user profile to determine role
     const { data: profile, error: profileError } = await supabase
@@ -154,18 +150,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Only students can create conversations
-    if (profile.role !== 'student') {
-      return NextResponse.json({ error: 'Only students can create conversations' }, { status: 403 });
+    // Validate input based on user role
+    if (profile.role === 'student') {
+      // Students provide SRC member ID
+      if (!src_member_id) {
+        return NextResponse.json({ error: 'SRC member ID is required' }, { status: 400 });
+      }
+    } else if (profile.role === 'src') {
+      // SRC members provide student ID
+      if (!student_id) {
+        return NextResponse.json({ error: 'Student ID is required' }, { status: 400 });
+      }
+    }
+
+    // Both students and SRC members can create conversations
+    if (profile.role !== 'student' && profile.role !== 'src') {
+      return NextResponse.json({ error: 'Only students and SRC members can create conversations' }, { status: 403 });
+    }
+
+    // Determine student_id and src_member_id based on user role
+    let finalStudentId: string;
+    let finalSrcMemberId: string;
+
+    if (profile.role === 'student') {
+      // Current user is student, provided src_member_id
+      finalStudentId = profile.id;
+      finalSrcMemberId = src_member_id;
+    } else if (profile.role === 'src') {
+      // Current user is SRC member, provided student_id
+      finalStudentId = student_id;
+      finalSrcMemberId = profile.id;
+    } else {
+      return NextResponse.json({ error: 'Invalid role for conversation creation' }, { status: 403 });
     }
 
     // Check if conversation already exists
-    // Use profile.id (UUID) instead of profile.student_id (TEXT)
     const { data: existingConversation, error: existingError } = await supabase
       .from('chat_conversations')
       .select('id')
-      .eq('student_id', profile.id) // Use profile.id (UUID) here
-      .eq('src_member_id', src_member_id)
+      .eq('student_id', finalStudentId)
+      .eq('src_member_id', finalSrcMemberId)
       .single();
 
     if (existingError && existingError.code !== 'PGRST116') {
@@ -182,8 +206,8 @@ export async function POST(request: NextRequest) {
 
     // Create new conversation with all required fields
     const conversationData = {
-      student_id: profile.id, // Use profile.id (UUID) here
-      src_member_id,
+      student_id: finalStudentId,
+      src_member_id: finalSrcMemberId,
       is_active: true,
       last_message_at: new Date().toISOString(),
       created_at: new Date().toISOString(),

@@ -121,7 +121,7 @@ export async function GET(
       hasMore: (count || 0) > offset + limit,
       participants
     });
-  } catch (_error) {
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

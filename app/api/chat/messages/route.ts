@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       .from('chat_messages')
       .select('*', { count: 'exact' })
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (messagesError) {
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       total: count || 0,
       hasMore: (count || 0) > offset + limit
     });
-  } catch (_error) {
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

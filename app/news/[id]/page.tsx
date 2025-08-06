@@ -13,7 +13,7 @@ export default function NewsDetailPage() {
   const params = useParams();
   const [post, setPost] = useState<NewsPost | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (params.id) {
@@ -26,7 +26,7 @@ export default function NewsDetailPage() {
       setLoading(true);
       const postData = await newsPostsApi.getPost(id);
       setPost(postData);
-    } catch (error) {
+    } catch {
       alert('Failed to load post');
     } finally {
       setLoading(false);
@@ -55,13 +55,13 @@ export default function NewsDetailPage() {
     );
   }
 
-  if (error || !post) {
+  if (!post) {
     return (
       <PageLayout>
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Post Not Found</h1>
-            <p className="text-gray-600 mb-6">{error || 'The requested news post could not be found.'}</p>
+            <p className="text-gray-600 mb-6">The requested news post could not be found.</p>
             <Button
               onClick={() => window.history.back()}
               className="bg-[#359d49] hover:bg-[#2a6b39] text-white"

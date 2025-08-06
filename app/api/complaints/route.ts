@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
     // This could be implemented later to notify SRC members of new complaints
 
     return NextResponse.json({ complaint: data }, { status: 201 });
-  } catch (_error) {
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

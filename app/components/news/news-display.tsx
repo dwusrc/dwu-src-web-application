@@ -47,7 +47,7 @@ export default function NewsDisplay({
       
       setPosts(postsData);
       setTotalPosts(postsData.length); // In a real app, you'd get total count from API
-    } catch (_error) {
+    } catch {
       alert('Failed to load posts');
     } finally {
       setLoading(false);
@@ -58,7 +58,7 @@ export default function NewsDisplay({
     try {
       const categoriesData = await newsCategoriesApi.getCategories();
       setCategories(categoriesData);
-    } catch (_error) {
+    } catch {
       alert('Failed to load categories');
     }
   };

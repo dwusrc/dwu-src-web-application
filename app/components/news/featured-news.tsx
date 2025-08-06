@@ -29,7 +29,7 @@ export default function FeaturedNews({ limit = 3, showViewAll = true }: Featured
         offset: 0
       });
       setPosts(postsData);
-    } catch (_error) {
+    } catch {
       alert('Failed to load featured posts');
     } finally {
       setLoading(false);

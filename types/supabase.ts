@@ -18,6 +18,7 @@ export interface Profile {
   role: UserRole;
   avatar_url?: string;
   department?: string;
+  src_department?: string;
   year_level?: number;
   phone?: string;
   is_active: boolean;

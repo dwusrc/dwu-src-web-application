@@ -19,6 +19,8 @@ export interface ChatConversation {
     full_name: string;
     email: string;
     avatar_url?: string;
+    department?: string;
+    year_level?: number;
   };
 }
 
@@ -47,6 +49,8 @@ export interface ChatParticipant {
   src_member_id: string; // This will be the member's ID
   role: string;
   src_department?: string;
+  department?: string; // For students
+  year_level?: number; // For students
   created_at: string;
   has_conversation: boolean;
   conversation_id?: string;
@@ -115,7 +119,7 @@ export class ChatApi {
     return data.conversations;
   }
 
-  // Create a new conversation
+  // Create a new conversation (for students)
   async createConversation(srcMemberId: string): Promise<ChatConversation> {
     const response = await fetch(`${this.baseUrl}/conversations`, {
       method: 'POST',
@@ -123,6 +127,39 @@ export class ChatApi {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ src_member_id: srcMemberId }),
+    });
+
+    if (response.status === 409) {
+      // Conversation already exists, get the existing conversation
+      const errorData = await response.json();
+      if (errorData.conversation_id) {
+        // Fetch the existing conversation
+        const conversations = await this.getConversations();
+        const existingConversation = conversations.find(conv => conv.id === errorData.conversation_id);
+        if (existingConversation) {
+          return existingConversation;
+        }
+      }
+      throw new Error('Conversation already exists but could not be retrieved');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create conversation');
+    }
+
+    const data = await response.json();
+    return data.conversation;
+  }
+
+  // Create a new conversation with a student (for SRC members)
+  async createConversationWithStudent(studentId: string): Promise<ChatConversation> {
+    const response = await fetch(`${this.baseUrl}/conversations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ student_id: studentId }),
     });
 
     if (response.status === 409) {
@@ -255,6 +292,8 @@ export class ChatApi {
     if (department) {
       params.append('department', department);
     }
+    // Add role=student for SRC members to get students
+    params.append('role', 'student');
     
     const response = await fetch(`${this.baseUrl}/participants?${params}`);
     if (!response.ok) {

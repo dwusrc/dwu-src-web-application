@@ -65,7 +65,7 @@ export function Header({ className }: HeaderProps) {
       router.push('/');
       router.refresh(); // Force a refresh of the page data
       
-    } catch (_error) {
+    } catch {
       // Even if sign out fails, redirect to home page
       router.push('/');
     } finally {

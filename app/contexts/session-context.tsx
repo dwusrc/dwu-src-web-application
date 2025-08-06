@@ -61,7 +61,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       }
 
       return data as UserProfile;
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -83,7 +83,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       if (profileData) {
         setProfile(profileData);
       }
-    } catch (error) {
+    } catch {
       // Silent error handling
     }
   }, [user]);
@@ -116,7 +116,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       // Use router.push for client-side navigation instead of window.location
       // This will be handled by the component that calls signOut
       
-    } catch (error) {
+    } catch {
       // Ensure state is cleared even if there's an error
       setUser(null);
       setProfile(null);
@@ -150,7 +150,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         }
 
         setLoading(false);
-      } catch (error) {
+      } catch {
         setLoading(false);
       }
     };
@@ -180,8 +180,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
           setLoading(false);
         }
       );
-    } catch (error) {
-      setLoading(false);
+          } catch {
+        setLoading(false);
     }
 
     // Cleanup function

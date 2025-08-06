@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
 import NewsManagement from '@/app/components/news/news-management';
 import ComplaintList from '@/app/components/complaints/complaint-list';
+
+// Lazy load chat interfaces
+const SRCChatInterface = lazy(() => import('@/app/components/chat/src-chat-interface'));
 
 import { Complaint, ComplaintStatus } from '@/types/supabase';
 import { useSession } from '@/app/contexts/session-context';
@@ -105,7 +108,7 @@ export default function SRCDashboard() {
       } else {
         alert('Failed to load complaints');
       }
-    } catch (error) {
+    } catch {
       alert('Failed to load complaints');
     } finally {
       setLoading(false);
@@ -138,7 +141,7 @@ export default function SRCDashboard() {
       } else {
         alert('Failed to assign complaint');
       }
-    } catch (error) {
+    } catch {
       alert('Failed to assign complaint');
     }
   };
@@ -168,7 +171,7 @@ export default function SRCDashboard() {
       } else {
         alert('Failed to update complaint status');
       }
-    } catch (error) {
+    } catch {
       alert('Failed to update complaint status');
     }
   };
@@ -206,7 +209,7 @@ export default function SRCDashboard() {
         const errorData = await response.json();
         alert(`Failed to update complaint: ${errorData.error}`);
       }
-    } catch (error) {
+    } catch {
       alert('Failed to update complaint');
     }
   };
@@ -270,15 +273,7 @@ export default function SRCDashboard() {
   //   },
   // ];
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -564,88 +559,25 @@ export default function SRCDashboard() {
           {/* Communication Tab */}
           {activeTab === 'communication' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Communication Tools</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Student Chat Management</h2>
+                <div className="text-sm text-gray-600">
+                  Manage conversations with students from your department
+                </div>
+              </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Chat Moderation */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">💬 Chat Moderation</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Active Conversations</span>
-                      <span className="text-sm font-medium text-gray-900">12</span>
+              {/* Chat Interface */}
+              <div className="bg-white rounded-lg shadow-md" style={{ minHeight: '600px', maxHeight: '80vh' }}>
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49] mx-auto mb-2"></div>
+                      <p className="text-gray-600">Loading chat interface...</p>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Pending Messages</span>
-                      <span className="text-sm font-medium text-gray-900">5</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Flagged Messages</span>
-                      <span className="text-sm font-medium text-red-600">2</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      View Chat Dashboard
-                    </Button>
                   </div>
-                </div>
-
-                {/* Forum Moderation */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📝 Forum Moderation</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Active Topics</span>
-                      <span className="text-sm font-medium text-gray-900">8</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">New Posts</span>
-                      <span className="text-sm font-medium text-gray-900">15</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Flagged Posts</span>
-                      <span className="text-sm font-medium text-red-600">3</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      View Forum Dashboard
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Notifications */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🔔 Notifications</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Pending Notifications</span>
-                      <span className="text-sm font-medium text-gray-900">7</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Sent Today</span>
-                      <span className="text-sm font-medium text-gray-900">12</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Send Notification
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Email Templates */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📧 Email Templates</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Available Templates</span>
-                      <span className="text-sm font-medium text-gray-900">5</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Sent This Week</span>
-                      <span className="text-sm font-medium text-gray-900">23</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Manage Templates
-                    </Button>
-                  </div>
-                </div>
+                }>
+                  <SRCChatInterface />
+                </Suspense>
               </div>
             </div>
           )}

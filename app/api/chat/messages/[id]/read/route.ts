@@ -3,8 +3,9 @@ import { createServerClient } from '@supabase/ssr';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,7 +18,7 @@ export async function PUT(
               return { name, value };
             }) || [];
           },
-          setAll(cookiesToSet) {
+          setAll() {
             // Handle cookie setting if needed
           },
         },
@@ -34,7 +35,7 @@ export async function PUT(
       );
     }
 
-    const messageId = params.id;
+    const messageId = id;
 
     // Verify the message exists and user has access to it
     const { data: message, error: messageError } = await supabase

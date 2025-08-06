@@ -65,7 +65,7 @@ function ProfilePageContent() {
                 setAvatarSrc(null);
               }
             }
-          } catch (error) {
+          } catch {
             if (mountedRef.current) {
               setAvatarSrc(null);
             }
@@ -132,7 +132,7 @@ function ProfilePageContent() {
 
       window.location.reload();
 
-    } catch (error: unknown) {
+    } catch {
       alert('Error updating avatar');
     } finally {
       setIsSubmitting(false);
