@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     const cookieStore = await cookies();
     
-    const supabase = createServerClient(
+        const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -45,12 +45,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // Get user profile to determine role
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user?.id)
+      .single();
+
+    if (profileError) {
+      return NextResponse.json({ error: 'Failed to get user profile' }, { status: 500 });
+    }
+
     // Return the session data
     return NextResponse.json({ 
       success: true, 
       user: data.user,
       session: data.session,
-      role: data.user?.user_metadata?.role || null
+      role: profile?.role || null
     });
 
   } catch {

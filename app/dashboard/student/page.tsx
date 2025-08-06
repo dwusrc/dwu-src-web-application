@@ -1,18 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
-import NewsDisplay from '@/app/components/news/news-display';
-import FeaturedNews from '@/app/components/news/featured-news';
-import ComplaintForm from '@/app/components/forms/complaint-form';
-import ComplaintList from '@/app/components/complaints/complaint-list';
-import ComplaintView from '@/app/components/forms/complaint-view';
 import { ComplaintCategory, ComplaintPriority, ComplaintWithRelations } from '@/types/supabase';
 import { useSession } from '@/app/contexts/session-context';
 
+// Lazy load heavy components
+const NewsDisplay = lazy(() => import('@/app/components/news/news-display'));
+const FeaturedNews = lazy(() => import('@/app/components/news/featured-news'));
+const ComplaintForm = lazy(() => import('@/app/components/forms/complaint-form'));
+const ComplaintList = lazy(() => import('@/app/components/complaints/complaint-list'));
+const ComplaintView = lazy(() => import('@/app/components/forms/complaint-view'));
 
+// Loading component for lazy-loaded components
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
+  </div>
+);
 
 interface DashboardStats {
   myComplaints: number;
@@ -104,27 +111,24 @@ export default function StudentDashboard() {
     }));
   };
 
-  // Fetch complaints from API
   const fetchComplaints = async (page: number = 1) => {
     setLoading(true);
     try {
       const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
-      if (response.ok) {
-        const data = await response.json();
-        const transformedComplaints = transformComplaints(data.complaints || []);
-        setComplaints(transformedComplaints);
-        setTotalCount(data.pagination?.total || 0);
-      } else {
-        alert('Failed to load complaints');
+      if (!response.ok) {
+        throw new Error('Failed to fetch complaints');
       }
+      const data = await response.json();
+      setComplaints(transformComplaints(data.complaints));
+      setTotalCount(data.pagination.total);
+      setCurrentPage(page);
     } catch (error) {
-      alert('Failed to load complaints');
+      console.error('Error fetching complaints:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Submit new complaint
   const handleSubmitComplaint = async (formData: {
     title: string;
     description: string;
@@ -141,30 +145,25 @@ export default function StudentDashboard() {
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setComplaints(prev => [data.complaint, ...prev]);
-        setShowComplaintModal(false);
-        // Refresh complaints list
-        fetchComplaints(currentPage);
-      } else {
-        const errorData = await response.json();
-        alert(`Error: ${errorData.error}`);
+      if (!response.ok) {
+        throw new Error('Failed to submit complaint');
       }
-          } catch (error) {
-        alert('Failed to submit complaint. Please try again.');
-      } finally {
+
+      setShowComplaintModal(false);
+      fetchComplaints(currentPage);
+    } catch (error) {
+      console.error('Error submitting complaint:', error);
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle complaint actions
   const handleViewComplaint = (complaint: ComplaintWithRelations) => {
     setSelectedComplaint(complaint);
+    setEditMode(false);
   };
 
   const handleEditComplaint = (complaint: ComplaintWithRelations) => {
-    // Set the complaint and enable edit mode
     setSelectedComplaint(complaint);
     setEditMode(true);
   };
@@ -176,14 +175,8 @@ export default function StudentDashboard() {
     priority: ComplaintPriority;
   }) => {
     if (!selectedComplaint) return;
-    
-    // Prevent duplicate submissions
-    if (isSubmitting) {
-      return;
-    }
-    
+
     setIsSubmitting(true);
-    
     try {
       const response = await fetch(`/api/complaints/${selectedComplaint.id}`, {
         method: 'PUT',
@@ -193,24 +186,15 @@ export default function StudentDashboard() {
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        setComplaints(prev => prev.map(c => c.id === selectedComplaint.id ? data.complaint : c));
-        setSelectedComplaint(data.complaint);
-        setEditMode(false);
-        alert('Complaint updated successfully!');
-        
-        // Force a refresh to ensure we have the latest data from the database
-        setTimeout(() => {
-          fetchComplaints(currentPage);
-        }, 100);
-      } else {
-        const errorData = await response.json();
-        alert(`Failed to update complaint: ${errorData.error || 'Unknown error'}`);
+      if (!response.ok) {
+        throw new Error('Failed to update complaint');
       }
+
+      setEditMode(false);
+      setSelectedComplaint(null);
+      fetchComplaints(currentPage);
     } catch (error) {
-      alert('Failed to update complaint. Please try again.');
+      console.error('Error updating complaint:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -218,38 +202,38 @@ export default function StudentDashboard() {
 
   const handleCancelEdit = () => {
     setEditMode(false);
+    setSelectedComplaint(null);
   };
 
   const handleDeleteComplaint = async (complaint: ComplaintWithRelations) => {
-    if (confirm('Are you sure you want to delete this complaint?')) {
-      try {
-        const response = await fetch(`/api/complaints/${complaint.id}`, {
-          method: 'DELETE',
-        });
+    if (!confirm('Are you sure you want to delete this complaint?')) return;
 
-        if (response.ok) {
-          setComplaints(prev => prev.filter(c => c.id !== complaint.id));
-          if (selectedComplaint?.id === complaint.id) {
-            setSelectedComplaint(null);
-          }
-        } else {
-          alert('Failed to delete complaint');
-        }
-      } catch (error) {
-        alert('Failed to delete complaint');
+    try {
+      const response = await fetch(`/api/complaints/${complaint.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete complaint');
       }
+
+      setSelectedComplaint(null);
+      fetchComplaints(currentPage);
+    } catch (error) {
+      console.error('Error deleting complaint:', error);
     }
   };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
     fetchComplaints(page);
   };
 
-  // Load complaints on component mount
+  // Only fetch complaints when the complaints tab is active
   useEffect(() => {
-    fetchComplaints();
-  }, []);
+    if (activeTab === 'complaints') {
+      fetchComplaints();
+    }
+  }, [activeTab]);
 
   const tabs = [
     { id: 'overview', name: 'Overview', shortName: 'Overview', icon: '📊' },
@@ -352,111 +336,44 @@ export default function StudentDashboard() {
 
               {/* Quick Actions */}
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Button
                     onClick={() => setShowComplaintModal(true)}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    className="w-full bg-red-600 hover:bg-red-700"
                   >
-                    ⚠️ Submit Complaint
+                    Submit Complaint
                   </Button>
                   <Button
                     onClick={() => setShowProposalModal(true)}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
                   >
-                    📋 Submit Proposal
+                    Submit Proposal
                   </Button>
                   <Button
                     onClick={() => setShowChatModal(true)}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    className="w-full bg-purple-600 hover:bg-purple-700"
                   >
-                    💬 Start Chat
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab('news')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                  >
-                    📢 View News
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab('forums')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                  >
-                    📝 Join Forum
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab('complaints')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                  >
-                    📋 View Complaints
+                    Start Chat
                   </Button>
                 </div>
               </div>
 
               {/* Recent Activity */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Recent Complaints */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Complaints</h3>
-                  {complaints.slice(0, 3).length > 0 ? (
-                    <div className="space-y-3">
-                      {complaints.slice(0, 3).map((complaint) => (
-                        <div
-                          key={complaint.id}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleViewComplaint(complaint)}
-                        >
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{complaint.title}</p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(complaint.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            complaint.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            complaint.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            complaint.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {complaint.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      ))}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
+                <div className="space-y-4">
+                  {proposals.map((proposal) => (
+                    <div key={proposal.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{proposal.title}</h3>
+                        <p className="text-sm text-gray-600">Status: {proposal.status}</p>
+                      </div>
+                      <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                        {proposal.status}
+                      </span>
                     </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">No complaints yet</p>
-                  )}
-                  <Button
-                    onClick={() => setActiveTab('complaints')}
-                    className="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  >
-                    View All Complaints
-                  </Button>
-                </div>
-
-                {/* Recent News */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent News</h3>
-                  <div className="space-y-3">
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-900">Campus WiFi Maintenance</p>
-                      <p className="text-xs text-gray-500">Scheduled for this weekend</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-900">Student Council Elections</p>
-                      <p className="text-xs text-gray-500">Nominations now open</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-900">Library Extended Hours</p>
-                      <p className="text-xs text-gray-500">During exam period</p>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => setActiveTab('news')}
-                    className="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  >
-                    View All News
-                  </Button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -464,41 +381,39 @@ export default function StudentDashboard() {
 
           {/* News Tab */}
           {activeTab === 'news' && (
-            <div className="space-y-6">
-              <FeaturedNews />
-              <NewsDisplay />
-            </div>
+            <Suspense fallback={<LoadingSpinner />}>
+              <div className="space-y-6">
+                <FeaturedNews />
+                <NewsDisplay />
+              </div>
+            </Suspense>
           )}
 
           {/* Complaints Tab */}
           {activeTab === 'complaints' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">My Complaints</h2>
-                <Button
-                  onClick={() => setShowComplaintModal(true)}
-                  className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                >
-                  + Submit New Complaint
-                </Button>
+            <Suspense fallback={<LoadingSpinner />}>
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">My Complaints</h2>
+                  <Button
+                    onClick={() => setShowComplaintModal(true)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Submit New Complaint
+                  </Button>
+                </div>
+                <ComplaintList
+                  complaints={complaints}
+                  loading={loading}
+                  onView={handleViewComplaint}
+                  onEdit={handleEditComplaint}
+                  onDelete={handleDeleteComplaint}
+                  currentPage={currentPage}
+                  totalCount={totalCount}
+                  onPageChange={handlePageChange}
+                />
               </div>
-
-              <ComplaintList
-                complaints={complaints}
-                loading={loading}
-                onView={handleViewComplaint}
-                onEdit={handleEditComplaint}
-                onDelete={handleDeleteComplaint}
-                userRole="student"
-                currentUserId={session?.user?.id}
-                showFilters={true}
-                showPagination={true}
-                totalCount={totalCount}
-                currentPage={currentPage}
-                pageSize={10}
-                onPageChange={handlePageChange}
-              />
-            </div>
+            </Suspense>
           )}
 
           {/* Proposals Tab */}
@@ -508,61 +423,32 @@ export default function StudentDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">My Proposals</h2>
                 <Button
                   onClick={() => setShowProposalModal(true)}
-                  className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  + Submit New Proposal
+                  Submit New Proposal
                 </Button>
               </div>
-
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Title
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Submitted
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {proposals.map((proposal) => (
-                      <tr key={proposal.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{proposal.title}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            proposal.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            proposal.status === 'under_review' ? 'bg-blue-100 text-blue-800' :
-                            proposal.status === 'approved' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {proposal.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {proposal.createdAt}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button className="text-[#359d49] hover:text-[#2a6b39] mr-3">
-                            View
-                          </button>
-                          <button className="text-red-600 hover:text-red-900">
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="space-y-4">
+                  {proposals.map((proposal) => (
+                    <div key={proposal.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{proposal.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Submitted: {new Date(proposal.createdAt).toLocaleDateString()}
+                          </p>
+                          {proposal.feedback && (
+                            <p className="text-sm text-gray-600 mt-2">{proposal.feedback}</p>
+                          )}
+                        </div>
+                        <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                          {proposal.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -571,36 +457,30 @@ export default function StudentDashboard() {
           {activeTab === 'chat' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Chat with SRC</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Chat Messages</h2>
                 <Button
                   onClick={() => setShowChatModal(true)}
-                  className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                  className="bg-purple-600 hover:bg-purple-700"
                 >
-                  + Start New Chat
+                  Start New Chat
                 </Button>
               </div>
-
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="space-y-4">
                   {chatMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`p-4 rounded-lg ${
-                        message.unread ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
-                      }`}
-                    >
+                    <div key={message.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{message.from}</p>
+                          <h3 className="font-medium text-gray-900">{message.from}</h3>
                           <p className="text-sm text-gray-600 mt-1">{message.message}</p>
+                          <p className="text-xs text-gray-500 mt-2">{message.timestamp}</p>
                         </div>
-                        <div className="text-xs text-gray-500">{message.timestamp}</div>
+                        {message.unread && (
+                          <span className="inline-block mt-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                            New
+                          </span>
+                        )}
                       </div>
-                      {message.unread && (
-                        <span className="inline-block mt-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                          New
-                        </span>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -663,11 +543,13 @@ export default function StudentDashboard() {
                     </svg>
                   </button>
                 </div>
-                <ComplaintForm
-                  onSubmit={handleSubmitComplaint}
-                  onCancel={() => setShowComplaintModal(false)}
-                  isSubmitting={isSubmitting}
-                />
+                <Suspense fallback={<LoadingSpinner />}>
+                  <ComplaintForm
+                    onSubmit={handleSubmitComplaint}
+                    onCancel={() => setShowComplaintModal(false)}
+                    isSubmitting={isSubmitting}
+                  />
+                </Suspense>
               </div>
             </div>
           </div>
@@ -690,29 +572,31 @@ export default function StudentDashboard() {
                     </svg>
                   </button>
                 </div>
-                {editMode ? (
-                  <ComplaintForm
-                    initialData={{
-                      title: selectedComplaint.title,
-                      description: selectedComplaint.description,
-                      category: selectedComplaint.category,
-                      priority: selectedComplaint.priority,
-                    }}
-                    onSubmit={handleSaveEdit}
-                    onCancel={handleCancelEdit}
-                    isSubmitting={isSubmitting}
-                    submitLabel="Update Complaint"
-                  />
-                ) : (
-                  <ComplaintView
-                    complaint={selectedComplaint}
-                    showActions={true}
-                    onEdit={() => handleEditComplaint(selectedComplaint)}
-                    onDelete={() => handleDeleteComplaint(selectedComplaint)}
-                    userRole="student"
-                    isAssignedToUser={false}
-                  />
-                )}
+                <Suspense fallback={<LoadingSpinner />}>
+                  {editMode ? (
+                    <ComplaintForm
+                      initialData={{
+                        title: selectedComplaint.title,
+                        description: selectedComplaint.description,
+                        category: selectedComplaint.category,
+                        priority: selectedComplaint.priority,
+                      }}
+                      onSubmit={handleSaveEdit}
+                      onCancel={handleCancelEdit}
+                      isSubmitting={isSubmitting}
+                      submitLabel="Update Complaint"
+                    />
+                  ) : (
+                    <ComplaintView
+                      complaint={selectedComplaint}
+                      showActions={true}
+                      onEdit={() => handleEditComplaint(selectedComplaint)}
+                      onDelete={() => handleDeleteComplaint(selectedComplaint)}
+                      userRole="student"
+                      isAssignedToUser={false}
+                    />
+                  )}
+                </Suspense>
               </div>
             </div>
           </div>

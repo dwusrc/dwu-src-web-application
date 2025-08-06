@@ -34,14 +34,11 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   
-  // Add experimental settings for better performance
+  // Add experimental settings for better performance (stable features only)
   experimental: {
     // Optimize bundle size
     optimizePackageImports: ['@supabase/ssr', '@supabase/supabase-js'],
   },
-  
-  // Move serverExternalPackages to the correct location
-  serverExternalPackages: [],
   
   // Add webpack configuration for better performance
   webpack: (config, { isServer }) => {
@@ -50,6 +47,20 @@ const nextConfig: NextConfig = {
       test: /\.(png|jpe?g|gif|svg|webp)$/i,
       type: 'asset/resource',
     });
+    
+    // Optimize bundle splitting
+    if (!isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      };
+    }
     
     return config;
   },
@@ -66,8 +77,29 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
     ];
   },
+
+  // Add compiler optimizations
+  compiler: {
+    // Remove console logs in production
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+
+  // Add performance optimizations
+  poweredByHeader: false,
+  
+  // Add compression
+  compress: true,
 };
 
 export default nextConfig;

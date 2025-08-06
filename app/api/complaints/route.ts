@@ -42,13 +42,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
 
+    // Build query with optimized joins
     let query = supabase
       .from('complaints')
       .select(`
         *,
         student:profiles!complaints_student_id_fkey(id, full_name, student_id, department, year_level),
         assigned_to:profiles!complaints_assigned_to_fkey(id, full_name, role)
-      `)
+      `, { count: 'exact' })
       .order('created_at', { ascending: false });
 
     // Role-based filtering
@@ -72,22 +73,25 @@ export async function GET(request: NextRequest) {
       query = query.eq('priority', priority);
     }
 
+    // Execute query with pagination
     const { data: complaints, error, count } = await query
       .range(offset, offset + limit - 1);
 
     if (error) {
+      console.error('Database error:', error);
       return NextResponse.json({ error: 'Failed to fetch complaints' }, { status: 500 });
     }
 
     return NextResponse.json({ 
-      complaints, 
+      complaints: complaints || [], 
       pagination: {
         limit,
         offset,
         total: count || 0
       }
     });
-  } catch (_error) {
+  } catch (error) {
+    console.error('API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
