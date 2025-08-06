@@ -41,63 +41,52 @@ export async function POST(request: Request) {
   }
 
   // Parse request body
-  const { 
-    userId, 
-    full_name, 
-    email, 
-    role, 
-    student_id, 
-    department, 
-    src_department,
-    year_level, 
-    phone, 
-    is_active 
-  } = await request.json();
+  const { userId, src_department } = await request.json();
 
   // Validate input
-  if (!userId || !full_name || !email || !role) {
-    return NextResponse.json({ error: 'Required fields are missing' }, { status: 400 });
+  if (!userId || !src_department) {
+    return NextResponse.json({ error: 'User ID and SRC department are required' }, { status: 400 });
   }
 
-  if (!['student', 'src', 'admin'].includes(role)) {
-    return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+  // Verify the user is an SRC member
+  const { data: userProfile, error: userProfileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (userProfileError || !userProfile) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  // Validate SRC department is provided when role is 'src'
-  if (role === 'src' && !src_department) {
-    return NextResponse.json({ error: 'SRC department is required for SRC members' }, { status: 400 });
+  if (userProfile.role !== 'src') {
+    return NextResponse.json({ error: 'Can only assign departments to SRC members' }, { status: 400 });
   }
 
-  // Prevent admin from changing their own role or deactivating themselves
-  if (userId === user.id) {
-    if (role !== 'admin') {
-      return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
-    }
-    if (!is_active) {
-      return NextResponse.json({ error: 'Cannot deactivate your own account' }, { status: 400 });
-    }
+  // Verify the department exists
+  const { data: department, error: departmentError } = await supabase
+    .from('src_departments')
+    .select('name')
+    .eq('name', src_department)
+    .eq('is_active', true)
+    .single();
+
+  if (departmentError || !department) {
+    return NextResponse.json({ error: 'Invalid SRC department' }, { status: 400 });
   }
 
-  // Update user profile
+  // Update user's SRC department
   const { data, error } = await supabase
     .from('profiles')
     .update({ 
-      full_name,
-      email,
-      role,
-      student_id: student_id || null,
-      department: department || null,
-      src_department: role === 'src' ? (src_department || null) : null,
-      year_level: year_level || null,
-      phone: phone || null,
-      is_active,
+      src_department,
       updated_at: new Date().toISOString()
     })
     .eq('id', userId)
     .select('*');
 
   if (error) {
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update SRC department' }, { status: 500 });
   }
 
   if (!data || data.length === 0) {
@@ -105,7 +94,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ 
-    message: 'User updated successfully',
+    message: 'SRC department updated successfully',
     user: data[0]
   });
 } 

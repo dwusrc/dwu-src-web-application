@@ -120,13 +120,24 @@ export function ChatConversationList({
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className={`font-medium truncate ${
-                      selectedConversationId === conversation.id ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {conversation.src_member?.full_name || 'SRC Member'}
-                    </h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`font-medium truncate ${
+                        selectedConversationId === conversation.id ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {conversation.src_member?.full_name || 'SRC Member'}
+                      </h3>
+                      {conversation.src_member?.src_department && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className={`text-xs ${
+                            selectedConversationId === conversation.id ? 'text-white/70' : 'text-gray-500'
+                          }`}>
+                            {conversation.src_member.src_department}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     {lastMessage && (
-                      <span className={`text-xs ${
+                      <span className={`text-xs ml-2 ${
                         selectedConversationId === conversation.id ? 'text-white/80' : 'text-gray-500'
                       }`}>
                         {formatTimestamp(lastMessage.created_at)}

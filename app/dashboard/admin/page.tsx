@@ -12,6 +12,7 @@ interface User {
   role: 'student' | 'src' | 'admin';
   student_id: string | null;
   department: string | null;
+  src_department: string | null;
   year_level: number | null;
   phone: string | null;
   is_active: boolean;
@@ -24,6 +25,7 @@ interface EditUserForm {
   role: 'student' | 'src' | 'admin';
   student_id: string;
   department: string;
+  src_department: string;
   year_level: number;
   phone: string;
   is_active: boolean;
@@ -42,15 +44,30 @@ export default function AdminDashboard() {
     role: 'student',
     student_id: '',
     department: '',
+    src_department: '',
     year_level: 1,
     phone: '',
     is_active: true,
   });
+  const [srcDepartments, setSrcDepartments] = useState<Array<{name: string, description: string, color: string}>>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchUsers();
+    fetchSrcDepartments();
   }, []);
+
+  const fetchSrcDepartments = async () => {
+    try {
+      const response = await fetch('/api/admin/departments');
+      if (response.ok) {
+        const data = await response.json();
+        setSrcDepartments(data.departments || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch SRC departments:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -77,6 +94,7 @@ export default function AdminDashboard() {
       role: user.role,
       student_id: user.student_id || '',
       department: user.department || '',
+      src_department: user.src_department || '',
       year_level: user.year_level || 1,
       phone: user.phone || '',
       is_active: user.is_active,
@@ -91,6 +109,7 @@ export default function AdminDashboard() {
       role: 'student',
       student_id: '',
       department: '',
+      src_department: '',
       year_level: 1,
       phone: '',
       is_active: true,
@@ -248,6 +267,9 @@ export default function AdminDashboard() {
                     <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Department
                     </th>
+                    <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      SRC Department
+                    </th>
                     <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Role
                     </th>
@@ -276,6 +298,9 @@ export default function AdminDashboard() {
                       </td>
                       <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                         {user.department || 'N/A'}
+                      </td>
+                      <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
+                        {user.role === 'src' ? (user.src_department || 'N/A') : 'N/A'}
                       </td>
                       <td className="px-3 sm:px-6 py-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -386,19 +411,42 @@ export default function AdminDashboard() {
                       />
                     </div>
                     
-                    <div>
-                      <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
-                        Department
-                      </label>
-                      <input
-                        type="text"
-                        id="department"
-                        name="department"
-                        value={editForm.department}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      />
-                    </div>
+                                         <div>
+                       <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
+                         Department
+                       </label>
+                       <input
+                         type="text"
+                         id="department"
+                         name="department"
+                         value={editForm.department}
+                         onChange={handleEditFormChange}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
+                       />
+                     </div>
+                     
+                     {editForm.role === 'src' && (
+                       <div>
+                         <label htmlFor="src_department" className="block text-sm font-medium text-gray-700 mb-1">
+                           SRC Department *
+                         </label>
+                         <select
+                           id="src_department"
+                           name="src_department"
+                           value={editForm.src_department}
+                           onChange={handleEditFormChange}
+                           required={editForm.role === 'src'}
+                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
+                         >
+                           <option value="">Select SRC Department</option>
+                           {srcDepartments.map((dept) => (
+                             <option key={dept.name} value={dept.name}>
+                               {dept.name}
+                             </option>
+                           ))}
+                         </select>
+                       </div>
+                     )}
                     
                     <div>
                       <label htmlFor="year_level" className="block text-sm font-medium text-gray-700 mb-1">

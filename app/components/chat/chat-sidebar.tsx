@@ -17,10 +17,25 @@ export function ChatSidebar({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [departments, setDepartments] = useState<Array<{name: string, description: string, color: string}>>([]);
 
   useEffect(() => {
     fetchParticipants();
+    fetchDepartments();
   }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments');
+      if (response.ok) {
+        const data = await response.json();
+        setDepartments(data.departments || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch departments:', error);
+    }
+  };
 
   const fetchParticipants = async () => {
     try {
@@ -38,10 +53,13 @@ export function ChatSidebar({
     }
   };
 
-  const filteredParticipants = participants.filter(participant =>
-    participant.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    participant.role?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredParticipants = participants.filter(participant => {
+    const matchesSearch = participant.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         participant.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         participant.src_department?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDepartment = !selectedDepartment || participant.src_department === selectedDepartment;
+    return matchesSearch && matchesDepartment;
+  });
 
   if (loading) {
     return (
@@ -73,8 +91,8 @@ export function ChatSidebar({
         <p className="text-sm text-gray-500">Start a conversation</p>
       </div>
 
-      {/* Search */}
-      <div className="p-4 border-b">
+      {/* Search and Filters */}
+      <div className="p-4 border-b space-y-3">
         <input
           type="text"
           placeholder="Search SRC members..."
@@ -82,6 +100,19 @@ export function ChatSidebar({
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
         />
+        
+        <select
+          value={selectedDepartment}
+          onChange={(e) => setSelectedDepartment(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent text-sm"
+        >
+          <option value="">All Departments</option>
+          {departments.map((dept) => (
+            <option key={dept.name} value={dept.name}>
+              {dept.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Participants List */}
@@ -98,22 +129,32 @@ export function ChatSidebar({
                 onClick={() => onSelectParticipant(participant)}
                 className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
               >
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-[#359d49] rounded-full flex items-center justify-center text-white font-medium">
-                    {participant.full_name.charAt(0)}
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <h4 className="font-medium text-gray-900">
-                      {participant.full_name}
-                    </h4>
-                    {participant.role && (
-                      <p className="text-sm text-gray-500">{participant.role}</p>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  </div>
-                </div>
+                                 <div className="flex items-center">
+                   <div className="w-10 h-10 bg-[#359d49] rounded-full flex items-center justify-center text-white font-medium">
+                     {participant.full_name.charAt(0)}
+                   </div>
+                   <div className="ml-3 flex-1">
+                     <h4 className="font-medium text-gray-900">
+                       {participant.full_name}
+                     </h4>
+                     <div className="flex items-center gap-2">
+                       {participant.role && (
+                         <span className="text-sm text-gray-500">{participant.role}</span>
+                       )}
+                       {participant.src_department && (
+                         <>
+                           <span className="text-gray-300">•</span>
+                           <span className="text-xs px-2 py-1 bg-[#359d49]/10 text-[#359d49] rounded-full">
+                             {participant.src_department}
+                           </span>
+                         </>
+                       )}
+                     </div>
+                   </div>
+                   <div className="text-xs text-gray-400">
+                     <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                   </div>
+                 </div>
               </div>
             ))}
           </div>

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const department = searchParams.get('department');
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -55,8 +57,8 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Only students can view participants' }, { status: 403 });
     }
 
-    // Get all active SRC members
-    const { data: srcMembers, error: srcMembersError } = await supabase
+    // Build query for SRC members
+    let query = supabase
       .from('profiles')
       .select(`
         id,
@@ -64,9 +66,20 @@ export async function GET(_request: NextRequest) {
         email,
         avatar_url,
         role,
+        src_department,
         created_at
       `)
       .eq('role', 'src')
+      .eq('is_active', true);
+
+    // Add department filter if specified
+    if (department) {
+      query = query.eq('src_department', department);
+    }
+
+    // Execute query with ordering
+    const { data: srcMembers, error: srcMembersError } = await query
+      .order('src_department', { ascending: true })
       .order('full_name', { ascending: true });
 
     if (srcMembersError) {

@@ -183,14 +183,24 @@ export function ChatMessageList({
         <div className="w-10 h-10 bg-[#359d49] rounded-full flex items-center justify-center text-white font-medium">
           {conversation.src_member?.full_name?.charAt(0) || 'S'}
         </div>
-        <div className="ml-3">
-          <h3 className="font-medium text-gray-900">
-            {conversation.src_member?.full_name || 'SRC Member'}
-          </h3>
-          <p className="text-sm text-gray-500">
-            {conversation.src_member?.role || 'SRC Member'}
-          </p>
-        </div>
+                 <div className="ml-3">
+           <h3 className="font-medium text-gray-900">
+             {conversation.src_member?.full_name || 'SRC Member'}
+           </h3>
+           <div className="flex items-center gap-2">
+             <span className="text-sm text-gray-500">
+               {conversation.src_member?.role || 'SRC Member'}
+             </span>
+             {conversation.src_member?.src_department && (
+               <>
+                 <span className="text-gray-300">•</span>
+                 <span className="text-xs px-2 py-1 bg-[#359d49]/10 text-[#359d49] rounded-full">
+                   {conversation.src_member.src_department}
+                 </span>
+               </>
+             )}
+           </div>
+         </div>
       </div>
 
       {/* Messages - Fixed height with scroll */}

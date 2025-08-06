@@ -12,6 +12,7 @@ export interface ChatConversation {
     email: string;
     avatar_url?: string;
     role?: string;
+    src_department?: string;
   };
   student?: {
     id: string;
@@ -45,6 +46,7 @@ export interface ChatParticipant {
   avatar_url?: string;
   src_member_id: string; // This will be the member's ID
   role: string;
+  src_department?: string;
   created_at: string;
   has_conversation: boolean;
   conversation_id?: string;
@@ -60,6 +62,7 @@ export interface MessagesResponse {
       full_name: string;
       email: string;
       avatar_url?: string;
+      src_department?: string;
     };
     student?: {
       id: string;
@@ -76,6 +79,21 @@ export interface ConversationsResponse {
 
 export interface ParticipantsResponse {
   participants: ChatParticipant[];
+  total: number;
+}
+
+// SRC Department interfaces
+export interface SrcDepartment {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SrcDepartmentsResponse {
+  departments: SrcDepartment[];
   total: number;
 }
 
@@ -219,6 +237,31 @@ export class ChatApi {
     if (!response.ok) {
       throw new Error('Failed to mark message as read');
     }
+  }
+
+  // Get all SRC departments
+  async getSrcDepartments(): Promise<SrcDepartment[]> {
+    const response = await fetch('/api/admin/departments');
+    if (!response.ok) {
+      throw new Error('Failed to fetch SRC departments');
+    }
+    const data: SrcDepartmentsResponse = await response.json();
+    return data.departments;
+  }
+
+  // Get participants filtered by department
+  async getParticipantsByDepartment(department?: string): Promise<ChatParticipant[]> {
+    const params = new URLSearchParams();
+    if (department) {
+      params.append('department', department);
+    }
+    
+    const response = await fetch(`${this.baseUrl}/participants?${params}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch participants');
+    }
+    const data: ParticipantsResponse = await response.json();
+    return data.participants;
   }
 }
 

@@ -16,6 +16,7 @@ CREATE TABLE profiles (
   role user_role NOT NULL DEFAULT 'student',
   avatar_url TEXT,
   department TEXT, -- e.g., "Computer Science", "Business"
+  src_department TEXT, -- SRC department for SRC members
   year_level INTEGER, -- For students: 1, 2, 3, 4
   phone TEXT,
   is_active BOOLEAN DEFAULT true,
@@ -27,7 +28,47 @@ CREATE TABLE profiles (
 CREATE TYPE user_role AS ENUM ('student', 'src', 'admin');
 ```
 
-### 2. **news_categories** (News Categories)
+### 2. **src_departments** (SRC Departments)
+```sql
+CREATE TABLE src_departments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  color TEXT DEFAULT '#359d49',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert default SRC departments
+INSERT INTO src_departments (name, description, color) VALUES
+  ('Academic Affairs', 'Handles academic-related concerns and student academic matters', '#2a6b39'),
+  ('Student Welfare', 'Student welfare, support, and personal development', '#ddc753'),
+  ('Facilities & Infrastructure', 'Campus facilities, maintenance, and infrastructure issues', '#dc2626'),
+  ('Events & Activities', 'Campus events, student activities, and social programs', '#7c3aed'),
+  ('General', 'General inquiries and concerns not covered by other departments', '#359d49'),
+  ('Health & Safety', 'Health services, safety concerns, and emergency matters', '#059669'),
+  ('Technology & IT', 'IT support, computer labs, and technology-related issues', '#2563eb');
+
+-- Create view for SRC members with department details
+CREATE OR REPLACE VIEW src_members_view AS
+SELECT 
+  p.id,
+  p.full_name,
+  p.email,
+  p.avatar_url,
+  p.src_department,
+  p.phone,
+  p.is_active,
+  p.created_at,
+  sd.description as department_description,
+  sd.color as department_color
+FROM profiles p
+LEFT JOIN src_departments sd ON p.src_department = sd.name
+WHERE p.role = 'src' AND p.is_active = true
+ORDER BY p.src_department, p.full_name;
+```
+
+### 3. **news_categories** (News Categories)
 ```sql
 CREATE TABLE news_categories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -232,6 +273,8 @@ CREATE TYPE notification_type AS ENUM (
 -- Performance indexes
 CREATE INDEX idx_profiles_role ON profiles(role);
 CREATE INDEX idx_profiles_student_id ON profiles(student_id);
+CREATE INDEX idx_profiles_src_department ON profiles(src_department);
+CREATE INDEX idx_profiles_role_src_department ON profiles(role, src_department);
 CREATE INDEX idx_news_posts_status ON news_posts(status);
 CREATE INDEX idx_news_posts_created_at ON news_posts(created_at DESC);
 CREATE INDEX idx_complaints_student_id ON complaints(student_id);
@@ -250,6 +293,7 @@ CREATE INDEX idx_notifications_is_read ON notifications(is_read);
 ### Enable RLS on all tables
 ```sql
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE src_departments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE news_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_proposals ENABLE ROW LEVEL SECURITY;
@@ -307,6 +351,22 @@ CREATE POLICY "Anyone can view categories" ON news_categories
 
 -- Admins can manage categories
 CREATE POLICY "Admins can manage categories" ON news_categories
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+```
+
+### SRC Departments RLS Policies
+```sql
+-- Anyone can view departments
+CREATE POLICY "Anyone can view departments" ON src_departments
+  FOR SELECT USING (true);
+
+-- Only admins can manage departments
+CREATE POLICY "Admins can manage departments" ON src_departments
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM profiles 

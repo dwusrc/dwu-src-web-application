@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   }
 
   // Parse request body
-  const { userId, role } = await request.json();
+  const { userId, role, src_department } = await request.json();
 
   // Validate input
   if (!userId || !role) {
@@ -52,18 +52,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
   }
 
+  // Validate SRC department if role is src
+  if (role === 'src' && !src_department) {
+    return NextResponse.json({ error: 'SRC department is required for SRC members' }, { status: 400 });
+  }
+
   // Prevent admin from changing their own role
   if (userId === user.id) {
     return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
   }
 
-  // Update user role
+  // Prepare update data
+  const updateData: any = { 
+    role,
+    updated_at: new Date().toISOString()
+  };
+
+  // Add SRC department if role is src
+  if (role === 'src') {
+    updateData.src_department = src_department;
+  } else {
+    // Clear SRC department if role is not src
+    updateData.src_department = null;
+  }
+
+  // Update user role and department
   const { data, error } = await supabase
     .from('profiles')
-    .update({ 
-      role,
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('id', userId)
     .select('*');
 
