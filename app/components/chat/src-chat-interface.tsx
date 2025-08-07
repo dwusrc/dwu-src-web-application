@@ -301,6 +301,23 @@ export default function SRCChatInterface() {
     setShowSidebar(false); // Close sidebar on mobile when selecting conversation
   };
 
+  const handleConversationsUpdate = (updatedConversations: ChatConversation[]) => {
+    setConversations(updatedConversations);
+    conversationsRef.current = updatedConversations;
+    console.log('SRC dashboard received conversation updates:', updatedConversations.length, 'conversations');
+    
+    // Log details about conversations with unread messages
+    const conversationsWithUnread = updatedConversations.filter(conv => 
+      conv.messages?.some(msg => !msg.is_read && msg.sender_id !== session?.user?.id)
+    );
+    if (conversationsWithUnread.length > 0) {
+      console.log('Conversations with unread messages:', conversationsWithUnread.map(conv => ({
+        id: conv.id,
+        unreadCount: conv.messages?.filter(msg => !msg.is_read && msg.sender_id !== session?.user?.id).length
+      })));
+    }
+  };
+
   const handleSelectParticipant = async (participant: ChatParticipant) => {
     setSelectedParticipant(participant);
     setSelectedConversationId(null);
@@ -334,6 +351,13 @@ export default function SRCChatInterface() {
   };
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+  
+  // Log when selected conversation changes
+  useEffect(() => {
+    if (selectedConversation) {
+      console.log('SRC dashboard selected conversation:', selectedConversation.id, 'with', selectedConversation.messages?.length || 0, 'messages');
+    }
+  }, [selectedConversation]);
 
   if (loading) {
     return (
@@ -459,6 +483,7 @@ export default function SRCChatInterface() {
               onSelectConversation={handleSelectConversation}
               currentUserId={session?.user?.id || ''}
               userRole="src"
+              onConversationsUpdate={handleConversationsUpdate}
             />
           </div>
 

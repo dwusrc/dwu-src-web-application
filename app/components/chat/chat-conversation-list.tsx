@@ -11,6 +11,7 @@ interface ChatConversationListProps {
   currentUserId: string;
   userRole?: 'student' | 'src' | 'admin';
   onMarkMessagesAsRead?: (conversationId: string) => void;
+  onConversationsUpdate?: (conversations: ChatConversation[]) => void;
 }
 
 export function ChatConversationList({
@@ -19,6 +20,7 @@ export function ChatConversationList({
   currentUserId,
   userRole = 'student',
   onMarkMessagesAsRead,
+  onConversationsUpdate,
 }: ChatConversationListProps) {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,7 @@ export function ChatConversationList({
       
       setConversations(data);
       conversationsRef.current = data; // Update ref with latest conversations
+      onConversationsUpdate?.(data); // Notify parent component of updates
       setError(null);
     } catch (err) {
       setError('Failed to load conversations');
@@ -215,7 +218,14 @@ export function ChatConversationList({
             table: 'chat_messages',
           },
           (payload: { new: Record<string, unknown> }) => {
-            console.log('New message received in conversation list:', payload);
+            console.log('🎉 New message received in conversation list:', payload);
+            console.log('Message details:', {
+              id: payload.new.id,
+              conversation_id: payload.new.conversation_id,
+              sender_id: payload.new.sender_id,
+              content: typeof payload.new.content === 'string' ? payload.new.content.substring(0, 50) + '...' : payload.new.content,
+              created_at: payload.new.created_at
+            });
             const newMessage = payload.new as { id: string; conversation_id: string; sender_id: string; content: string; created_at: string; is_read: boolean; sender_type?: string; message_type?: string };
             
             // Only handle messages NOT from current user
@@ -397,15 +407,18 @@ export function ChatConversationList({
             schema: 'public',
             table: 'chat_messages',
           },
-          () => {}
+          (payload) => {
+            console.log('🎉 Test subscription received message:', payload);
+            alert('Real-time is working! Received test message event.');
+            supabase.removeChannel(testSubscription);
+          }
         )
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
-            console.log('Real-time is working!');
-            alert('Real-time is already enabled and working correctly.');
-            supabase.removeChannel(testSubscription);
+            console.log('✅ Real-time test subscription successful!');
+            console.log('Waiting for message events... (send a message to test)');
           } else {
-            console.log('Real-time test failed with status:', status);
+            console.log('❌ Real-time test failed with status:', status);
             alert('Real-time may not be properly configured. Please check:\n\n1. Run the migration in Supabase SQL Editor:\n   ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;\n   ALTER PUBLICATION supabase_realtime ADD TABLE chat_conversations;\n\n2. Ensure RLS policies allow access to chat tables\n\n3. Check Supabase project settings for real-time configuration');
           }
         });
@@ -468,6 +481,7 @@ export function ChatConversationList({
           
           setConversations(updatedConversations);
           conversationsRef.current = updatedConversations; // Update ref with new state
+          onConversationsUpdate?.(updatedConversations); // Notify parent component of updates
           setHasNewMessages(true);
           console.log('Optimistically updated conversation with new message:', newMessage.id);
         } else {
@@ -509,6 +523,7 @@ export function ChatConversationList({
       });
       setConversations(updatedConversations);
       conversationsRef.current = updatedConversations; // Update ref with new state
+      onConversationsUpdate?.(updatedConversations); // Notify parent component of updates
       
       // Then mark messages as read in the backend
       await onMarkMessagesAsRead?.(conversation.id);
