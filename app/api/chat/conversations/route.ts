@@ -63,7 +63,15 @@ export async function GET() {
             id,
             full_name,
             email,
-            avatar_url
+            avatar_url,
+            src_department
+          ),
+          messages:chat_messages(
+            id,
+            sender_id,
+            content,
+            is_read,
+            created_at
           )
         `)
         .eq('student_id', profile.id) // Use profile.id (UUID) here
@@ -78,7 +86,15 @@ export async function GET() {
             id,
             full_name,
             email,
-            avatar_url
+            avatar_url,
+            department
+          ),
+          messages:chat_messages(
+            id,
+            sender_id,
+            content,
+            is_read,
+            created_at
           )
         `)
         .eq('src_member_id', profile.id)

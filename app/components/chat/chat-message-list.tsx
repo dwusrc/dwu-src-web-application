@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 interface ChatMessageListProps {
   conversation: ChatConversation | null;
   currentUserId: string;
+  userRole?: 'student' | 'src' | 'admin';
   onMessageSent?: () => void;
   lastSentMessage?: ChatMessage | null;
 }
@@ -15,6 +16,7 @@ interface ChatMessageListProps {
 export function ChatMessageList({
   conversation,
   currentUserId,
+  userRole = 'student',
   onMessageSent,
   lastSentMessage,
 }: ChatMessageListProps) {
@@ -25,6 +27,7 @@ export function ChatMessageList({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null | undefined>(null);
+  const processedMessageIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (conversation) {
@@ -81,8 +84,6 @@ export function ChatMessageList({
   const subscribeToMessages = () => {
     if (!conversation) return;
 
-
-
     const subscription = supabase
       .channel(`chat_messages_${conversation.id}`)
       .on(
@@ -95,7 +96,24 @@ export function ChatMessageList({
         },
         (payload) => {
           const newMessage = payload.new as ChatMessage;
+          
+          // Check if we've already processed this message ID
+          if (processedMessageIds.current.has(newMessage.id)) {
+            console.log('Message already processed in message list, skipping:', newMessage.id);
+            return;
+          }
+          
+          // Add message ID to processed set
+          processedMessageIds.current.add(newMessage.id);
+          
           setMessages(prev => {
+            // Check if message already exists to prevent duplicates
+            const messageExists = prev.some(msg => msg.id === newMessage.id);
+            if (messageExists) {
+              console.log('Message already exists, skipping duplicate:', newMessage.id);
+              return prev;
+            }
+            console.log('Adding new message via real-time:', newMessage.id);
             return [...prev, newMessage];
           });
           
@@ -107,7 +125,19 @@ export function ChatMessageList({
           onMessageSent?.();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`Message list subscription status for conversation ${conversation.id}:`, status);
+        if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          console.log('Message list subscription error, attempting to reconnect...');
+          // Try to reconnect after a delay
+          setTimeout(() => {
+            if (conversation) {
+              console.log('Reconnecting to message list...');
+              subscriptionRef.current = subscribeToMessages();
+            }
+          }, 3000);
+        }
+      });
 
     return subscription;
   };
@@ -117,6 +147,9 @@ export function ChatMessageList({
       supabase.removeChannel(subscriptionRef.current);
       subscriptionRef.current = null;
     }
+    
+    // Clear processed message IDs to prevent memory leaks
+    processedMessageIds.current.clear();
   };
 
   const markMessageAsRead = async (messageId: string) => {
@@ -144,6 +177,50 @@ export function ChatMessageList({
 
   const isOwnMessage = (message: ChatMessage) => {
     return message.sender_id === currentUserId;
+  };
+
+  // Helper function to get the correct conversation participant name
+  const getConversationParticipantName = (conversation: ChatConversation) => {
+    if (userRole === 'src') {
+      // For SRC members, show the student's name
+      return conversation.student?.full_name || 'Student';
+    } else {
+      // For students, show the SRC member's name
+      return conversation.src_member?.full_name || 'SRC Member';
+    }
+  };
+
+  // Helper function to get the conversation participant's initial
+  const getConversationParticipantInitial = (conversation: ChatConversation) => {
+    if (userRole === 'src') {
+      // For SRC members, show the student's initial
+      return conversation.student?.full_name?.charAt(0) || 'S';
+    } else {
+      // For students, show the SRC member's initial
+      return conversation.src_member?.full_name?.charAt(0) || 'S';
+    }
+  };
+
+  // Helper function to get the conversation participant's department
+  const getConversationParticipantDepartment = (conversation: ChatConversation) => {
+    if (userRole === 'src') {
+      // For SRC members, show the student's department
+      return conversation.student?.department;
+    } else {
+      // For students, show the SRC member's department
+      return conversation.src_member?.src_department;
+    }
+  };
+
+  // Helper function to get the conversation participant's year level (for students)
+  const getConversationParticipantYearLevel = (conversation: ChatConversation) => {
+    if (userRole === 'src') {
+      // For SRC members, show the student's year level
+      return conversation.student?.year_level;
+    } else {
+      // For students, no year level to show
+      return null;
+    }
   };
 
   if (!conversation) {
@@ -183,31 +260,25 @@ export function ChatMessageList({
       {/* Conversation Header */}
       <div className="flex items-center p-4 border-b bg-white flex-shrink-0">
         <div className="w-10 h-10 bg-[#359d49] rounded-full flex items-center justify-center text-white font-medium">
-          {conversation.student?.full_name?.charAt(0) || conversation.src_member?.full_name?.charAt(0) || 'U'}
+          {getConversationParticipantInitial(conversation)}
         </div>
         <div className="ml-3">
           <h3 className="font-medium text-gray-900">
-            {conversation.student?.full_name || conversation.src_member?.full_name || 'User'}
+            {getConversationParticipantName(conversation)}
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">
-              {conversation.student?.department || conversation.src_member?.src_department || 'User'}
-            </span>
-            {conversation.student?.year_level && (
+            {getConversationParticipantYearLevel(conversation) && (
               <>
-                <span className="text-gray-300">•</span>
                 <span className="text-xs px-2 py-1 bg-[#359d49]/10 text-[#359d49] rounded-full">
-                  Year {conversation.student.year_level}
+                  Year {getConversationParticipantYearLevel(conversation)}
                 </span>
+                <span className="text-gray-300">•</span>
               </>
             )}
-            {conversation.src_member?.src_department && !conversation.student && (
-              <>
-                <span className="text-gray-300">•</span>
-                <span className="text-xs px-2 py-1 bg-[#359d49]/10 text-[#359d49] rounded-full">
-                  {conversation.src_member.src_department}
-                </span>
-              </>
+            {getConversationParticipantDepartment(conversation) && (
+              <span className="text-xs px-2 py-1 bg-[#359d49] text-white rounded-full font-medium">
+                {getConversationParticipantDepartment(conversation)}
+              </span>
             )}
           </div>
         </div>

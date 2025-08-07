@@ -10,7 +10,7 @@ import { ChatSidebar } from './chat-sidebar';
 
 interface ChatInterfaceProps {
   currentUserId: string;
-  userRole?: 'student' | 'src_member' | 'admin';
+  userRole?: 'student' | 'src' | 'admin';
 }
 
 function ChatInterface({ currentUserId, userRole }: ChatInterfaceProps) {
@@ -23,6 +23,29 @@ function ChatInterface({ currentUserId, userRole }: ChatInterfaceProps) {
     setSelectedConversation(conversation);
     setShowSidebar(false);
     setLastSentMessage(null); // Reset last sent message when changing conversations
+  };
+
+  const handleMarkMessagesAsRead = async (conversationId: string) => {
+    try {
+      // Get all unread messages for this conversation
+      const response = await chatApi.getMessages(conversationId);
+      const unreadMessages = response.messages.filter(
+        msg => !msg.is_read && msg.sender_id !== currentUserId
+      );
+      
+      // Mark each unread message as read in parallel for better performance
+      const markReadPromises = unreadMessages.map(message => 
+        chatApi.markMessageAsRead(message.id)
+      );
+      
+      await Promise.all(markReadPromises);
+      
+      console.log(`Marked ${unreadMessages.length} messages as read for conversation ${conversationId}`);
+      
+      // The real-time subscription will automatically update the UI
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
   };
 
   const handleSelectParticipant = async (participant: ChatParticipant) => {
@@ -99,6 +122,8 @@ function ChatInterface({ currentUserId, userRole }: ChatInterfaceProps) {
               onSelectConversation={handleSelectConversation}
               selectedConversationId={selectedConversation?.id}
               currentUserId={currentUserId}
+              userRole={userRole}
+              onMarkMessagesAsRead={handleMarkMessagesAsRead}
             />
           </div>
 
@@ -110,12 +135,12 @@ function ChatInterface({ currentUserId, userRole }: ChatInterfaceProps) {
               <ChatMessageList
                 conversation={selectedConversation}
                 currentUserId={currentUserId}
+                userRole={userRole}
                 onMessageSent={handleMessageSent}
                 lastSentMessage={lastSentMessage}
               />
               <ChatInput
                 conversation={selectedConversation}
-                currentUserId={currentUserId}
                 onMessageSent={handleMessageSent}
                 disabled={isCreatingConversation}
               />
