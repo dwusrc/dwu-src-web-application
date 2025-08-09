@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatMessage, ChatConversation } from '@/lib/chat-api';
 import { chatApi } from '@/lib/chat-api';
 import { supabase } from '@/lib/supabaseClient';
+import { RealtimeConnectionManager } from '@/lib/realtime-utils';
 
 interface ChatMessageListProps {
   conversation: ChatConversation | null;
@@ -37,6 +38,7 @@ export function ChatMessageList({
   const reconnectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
   const conversationIdRef = useRef<string | null>(null);
+  const connectionManagerRef = useRef<RealtimeConnectionManager | null>(null);
 
   // Memoize fetchMessages to prevent unnecessary re-renders
   const fetchMessages = useCallback(async () => {
@@ -86,6 +88,22 @@ export function ChatMessageList({
       console.log(`🔄 Conversation changed from ${conversationIdRef.current} to ${conversation.id}`);
       conversationIdRef.current = conversation.id;
       
+      // Initialize connection manager
+      if (!connectionManagerRef.current) {
+        connectionManagerRef.current = new RealtimeConnectionManager({
+          maxRetries: 5,
+          retryDelay: 2000,
+          onConnectionLost: () => {
+            console.log('🔌 Real-time connection lost, starting polling fallback');
+            startPollingFallback();
+          },
+          onConnectionRestored: () => {
+            console.log('🔌 Real-time connection restored, stopping polling fallback');
+            stopPollingFallback();
+          },
+        });
+      }
+      
       // Clear previous state
       setMessages([]);
       processedMessageIds.current.clear();
@@ -99,13 +117,17 @@ export function ChatMessageList({
       
       // Set up subscription with delay
       const subscriptionTimeout = setTimeout(() => {
-        subscriptionRef.current = subscribeToMessages();
+        const subscription = subscribeToMessages();
+        subscriptionRef.current = subscription;
       }, 100);
       
       return () => {
         clearTimeout(subscriptionTimeout);
         if (subscriptionRef.current) {
           unsubscribeFromMessages();
+        }
+        if (connectionManagerRef.current) {
+          connectionManagerRef.current.cleanup();
         }
       };
     }
@@ -154,6 +176,10 @@ export function ChatMessageList({
       }
       stopPollingFallback();
       stopPeriodicReconnection();
+      if (connectionManagerRef.current) {
+        connectionManagerRef.current.cleanup();
+        connectionManagerRef.current = null;
+      }
     };
   }, []);
 
@@ -289,19 +315,37 @@ export function ChatMessageList({
           console.log(`Message list subscription status for conversation ${conversation.id} (user: ${currentUserId}):`, status);
           console.log(`Channel name: ${channelName}`);
         
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Message list subscription successfully established');
-          stopPollingFallback(); // Stop polling if subscription is successful
-          stopPeriodicReconnection(); // Stop periodic reconnection if subscription is successful
-        } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-          console.log('❌ Message list subscription error, attempting to reconnect...');
-          startPollingFallback(); // Start polling on error
-          startPeriodicReconnection(); // Start periodic reconnection attempts
-        } else if (status === 'TIMED_OUT') {
-          console.log('⏰ Message list subscription timed out, attempting to reconnect...');
-          startPollingFallback(); // Start polling on timeout
-          startPeriodicReconnection(); // Start periodic reconnection attempts
-        }
+          // Use the connection manager to handle status changes
+          if (connectionManagerRef.current) {
+            connectionManagerRef.current.handleSubscriptionStatus(
+              status,
+              subscription,
+              () => {
+                // Reconnection function
+                if (conversation && !subscriptionRef.current) {
+                  const newSubscription = subscribeToMessages();
+                  subscriptionRef.current = newSubscription;
+                  return newSubscription || null;
+                }
+                return null;
+              }
+            );
+          } else {
+            // Fallback to original logic if connection manager is not available
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Message list subscription successfully established');
+              stopPollingFallback();
+              stopPeriodicReconnection();
+            } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+              console.log('❌ Message list subscription error, attempting to reconnect...');
+              startPollingFallback();
+              startPeriodicReconnection();
+            } else if (status === 'TIMED_OUT') {
+              console.log('⏰ Message list subscription timed out, attempting to reconnect...');
+              startPollingFallback();
+              startPeriodicReconnection();
+            }
+          }
       });
 
     return subscription;
@@ -351,7 +395,8 @@ export function ChatMessageList({
             unsubscribeFromMessages();
             setTimeout(() => {
               if (conversation && !subscriptionRef.current) {
-                subscriptionRef.current = subscribeToMessages();
+                const subscription = subscribeToMessages();
+                subscriptionRef.current = subscription;
               }
             }, 1000);
           }
@@ -383,7 +428,8 @@ export function ChatMessageList({
       
       if (!subscriptionRef.current) {
         console.log('🔄 Attempting to reconnect to message list...');
-        subscriptionRef.current = subscribeToMessages();
+        const subscription = subscribeToMessages();
+        subscriptionRef.current = subscription;
       }
     }, 10000); // Try to reconnect every 10 seconds
   };
