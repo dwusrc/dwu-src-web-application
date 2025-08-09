@@ -19,6 +19,7 @@ export default function SRCChatInterface() {
   const [error, setError] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const [forceMessageRefresh, setForceMessageRefresh] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -299,6 +300,8 @@ export default function SRCChatInterface() {
     setSelectedParticipant(null);
     setLastSentMessage(null);
     setShowSidebar(false); // Close sidebar on mobile when selecting conversation
+    // Force message refresh when switching conversations
+    setForceMessageRefresh(prev => !prev);
   };
 
   const handleConversationsUpdate = (updatedConversations: ChatConversation[]) => {
@@ -498,6 +501,7 @@ export default function SRCChatInterface() {
                    lastSentMessage={lastSentMessage}
                    currentUserId={session?.user?.id || ''}
                    userRole="src"
+                   forceRefresh={forceMessageRefresh}
                  />
                  <ChatInput
                    conversation={selectedConversation || null}

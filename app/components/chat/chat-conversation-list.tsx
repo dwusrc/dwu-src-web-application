@@ -116,31 +116,14 @@ export function ChatConversationList({
       msg => msg.sender_id !== currentUserId
     );
     
-    // Get all messages from current user (receiver messages)
-    const receiverMessages = conversation.messages.filter(
-      msg => msg.sender_id === currentUserId
-    );
-    
     if (senderMessages.length === 0) return 0;
     
-    // Find the last message sent by the receiver (current user)
-    const lastReceiverMessage = receiverMessages
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    // Count all unread messages from sender
+    const unreadMessages = senderMessages.filter(msg => !msg.is_read);
+    const count = unreadMessages.length;
     
-    if (!lastReceiverMessage) {
-      // If receiver never sent a message, count all unread messages from sender
-      const count = senderMessages.filter(msg => !msg.is_read).length;
-      console.log(`Conversation ${conversation.id}: Receiver never sent message, ${count} total unread messages from sender`);
-      return count;
-    }
-    
-    // Count only unread messages from sender that came AFTER the receiver's last message
-    const newUnreadMessages = senderMessages.filter(msg => 
-      new Date(msg.created_at) > new Date(lastReceiverMessage.created_at) && !msg.is_read
-    );
-    
-    console.log(`Conversation ${conversation.id}: Receiver last sent at ${lastReceiverMessage.created_at}, ${newUnreadMessages.length} new unread messages from sender since then`);
-    return newUnreadMessages.length;
+    console.log(`Conversation ${conversation.id}: ${count} total unread messages from sender`);
+    return count;
   };
 
   const getLatestUnreadMessage = (conversation: ChatConversation) => {
@@ -151,29 +134,13 @@ export function ChatConversationList({
       msg => msg.sender_id !== currentUserId
     );
     
-    // Get all messages from current user (receiver messages)
-    const receiverMessages = conversation.messages.filter(
-      msg => msg.sender_id === currentUserId
-    );
-    
     if (senderMessages.length === 0) return null;
     
-    // Find the last message sent by the receiver (current user)
-    const lastReceiverMessage = receiverMessages
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    // Get all unread messages from sender
+    const unreadMessages = senderMessages.filter(msg => !msg.is_read);
     
-    if (!lastReceiverMessage) {
-      // If receiver never sent a message, return the latest unread message from sender
-      const unreadMessages = senderMessages.filter(msg => !msg.is_read);
-      return unreadMessages.length > 0 ? unreadMessages[unreadMessages.length - 1] : null;
-    }
-    
-    // Get the latest unread message from sender that came AFTER the receiver's last message
-    const newUnreadMessages = senderMessages.filter(msg => 
-      new Date(msg.created_at) > new Date(lastReceiverMessage.created_at) && !msg.is_read
-    );
-    
-    return newUnreadMessages.length > 0 ? newUnreadMessages[newUnreadMessages.length - 1] : null;
+    // Return the latest unread message
+    return unreadMessages.length > 0 ? unreadMessages[unreadMessages.length - 1] : null;
   };
 
   // Helper function to get the correct conversation name based on user role
@@ -218,7 +185,7 @@ export function ChatConversationList({
             table: 'chat_messages',
           },
           (payload: { new: Record<string, unknown> }) => {
-            console.log('🎉 New message received in conversation list:', payload);
+            console.log('🎉 New message received in conversation list:', JSON.stringify(payload, null, 2));
             console.log('Message details:', {
               id: payload.new.id,
               conversation_id: payload.new.conversation_id,
@@ -428,6 +395,41 @@ export function ChatConversationList({
     }
   };
 
+  // Test RLS policies
+  const testRLSPolicies = async () => {
+    console.log('Testing RLS policies...');
+    try {
+      // Test if we can query chat_messages
+      const { data: messages, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select('id, conversation_id, sender_id, content, created_at')
+        .limit(5);
+      
+      if (messagesError) {
+        console.error('❌ RLS policy test failed for chat_messages:', messagesError);
+      } else {
+        console.log('✅ RLS policy test passed for chat_messages:', messages?.length || 0, 'messages found');
+        console.log('📋 Sample messages:', JSON.stringify(messages, null, 2));
+      }
+
+      // Test if we can query chat_conversations
+      const { data: conversations, error: conversationsError } = await supabase
+        .from('chat_conversations')
+        .select('id, student_id, src_member_id')
+        .limit(5);
+      
+      if (conversationsError) {
+        console.error('❌ RLS policy test failed for chat_conversations:', conversationsError);
+      } else {
+        console.log('✅ RLS policy test passed for chat_conversations:', conversations?.length || 0, 'conversations found');
+        console.log('📋 Sample conversations:', JSON.stringify(conversations, null, 2));
+      }
+
+    } catch (err) {
+      console.error('Failed to test RLS policies:', err);
+    }
+  };
+
   const hasUnreadMessages = (conversation: ChatConversation) => {
     return getUnreadCount(conversation) > 0;
   };
@@ -609,6 +611,12 @@ export function ChatConversationList({
                 className="text-xs px-2 py-1 bg-purple-500 text-white rounded hover:bg-purple-600"
               >
                 Enable RT
+              </button>
+              <button
+                onClick={() => testRLSPolicies()}
+                className="text-xs px-2 py-1 bg-orange-500 text-white rounded hover:bg-orange-600"
+              >
+                Test RLS
               </button>
               <button
                 onClick={() => fetchConversations(true)}

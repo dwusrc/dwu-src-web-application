@@ -176,6 +176,9 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString()
     };
 
+    console.log('📝 Creating message with data:', JSON.stringify(messageData, null, 2));
+    console.log('📝 User profile:', JSON.stringify(profile, null, 2));
+
     const { data: message, error: createError } = await supabase
       .from('chat_messages')
       .insert(messageData)
@@ -189,6 +192,8 @@ export async function POST(request: NextRequest) {
         details: createError.message 
       }, { status: 500 });
     }
+
+    console.log('✅ Message created successfully:', JSON.stringify(message, null, 2));
 
     // Update conversation's updated_at timestamp
     const { error: updateError } = await supabase

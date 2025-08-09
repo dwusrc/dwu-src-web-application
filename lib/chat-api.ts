@@ -194,15 +194,22 @@ export class ChatApi {
     if (options.limit) params.append('limit', options.limit.toString());
     if (options.offset) params.append('offset', options.offset.toString());
 
-    const response = await fetch(
-      `${this.baseUrl}/messages?conversation_id=${conversationId}&${params}`
-    );
+    const url = `${this.baseUrl}/messages?conversation_id=${conversationId}&${params}`;
+    console.log(`🌐 API call: ${url}`);
+    
+    const response = await fetch(url);
+    
+    console.log(`🌐 API response status: ${response.status}`);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch messages');
+      const errorText = await response.text();
+      console.error(`🌐 API error: ${response.status} - ${errorText}`);
+      throw new Error(`Failed to fetch messages: ${response.status} - ${errorText}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    console.log(`🌐 API response data:`, data);
+    return data;
   }
 
   // Get messages for a specific conversation by ID
@@ -301,6 +308,22 @@ export class ChatApi {
     }
     const data: ParticipantsResponse = await response.json();
     return data.participants;
+  }
+
+  // Clear all messages in a conversation
+  async clearMessages(conversationId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/messages/clear`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ conversation_id: conversationId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to clear messages');
+    }
   }
 }
 

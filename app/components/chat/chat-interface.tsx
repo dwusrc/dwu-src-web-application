@@ -18,11 +18,14 @@ function ChatInterface({ currentUserId, userRole }: ChatInterfaceProps) {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [lastSentMessage, setLastSentMessage] = useState<ChatMessage | null>(null);
+  const [forceMessageRefresh, setForceMessageRefresh] = useState(false);
 
   const handleSelectConversation = (conversation: ChatConversation) => {
     setSelectedConversation(conversation);
     setShowSidebar(false);
     setLastSentMessage(null); // Reset last sent message when changing conversations
+    // Force message refresh when switching conversations
+    setForceMessageRefresh(prev => !prev);
   };
 
   const handleMarkMessagesAsRead = async (conversationId: string) => {
@@ -138,6 +141,7 @@ function ChatInterface({ currentUserId, userRole }: ChatInterfaceProps) {
                 userRole={userRole}
                 onMessageSent={handleMessageSent}
                 lastSentMessage={lastSentMessage}
+                forceRefresh={forceMessageRefresh}
               />
               <ChatInput
                 conversation={selectedConversation}
