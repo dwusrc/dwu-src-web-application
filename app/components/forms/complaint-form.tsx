@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { ComplaintCategory, ComplaintPriority } from '@/types/supabase';
+import { ComplaintCategory, ComplaintPriority, SrcDepartment } from '@/types/supabase';
 
 interface ComplaintFormData {
   title: string;
   description: string;
   category: ComplaintCategory;
   priority: ComplaintPriority;
+  target_departments: string[]; // New field for department selection
 }
 
 interface ComplaintFormProps {
@@ -47,7 +48,26 @@ export default function ComplaintForm({
     description: initialData.description || '',
     category: initialData.category || 'academic',
     priority: initialData.priority || 'medium',
+    target_departments: initialData.target_departments || [''], // Start with no selection
   });
+
+  const [departments, setDepartments] = useState<SrcDepartment[]>([]);
+
+  // Fetch departments on component mount
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await fetch('/api/departments');
+        if (response.ok) {
+          const data = await response.json();
+          setDepartments(data.departments || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch departments:', error);
+      }
+    };
+    fetchDepartments();
+  }, []);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -72,6 +92,10 @@ export default function ComplaintForm({
 
     if (!formData.priority) {
       newErrors.priority = 'Priority is required';
+    }
+
+    if (!formData.target_departments || formData.target_departments.length === 0 || formData.target_departments[0] === '') {
+      newErrors.target_departments = 'Please select a department';
     }
 
     setErrors(newErrors);
@@ -196,6 +220,43 @@ export default function ComplaintForm({
         </div>
         {errors.priority && (
           <p className="mt-1 text-sm text-red-600">{errors.priority}</p>
+        )}
+      </div>
+
+      {/* Department Selection */}
+      <div>
+        <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
+          Send to Department *
+        </label>
+        <select
+          id="department"
+          value={formData.target_departments[0] || ''}
+          onChange={(e) => {
+            const value = e.target.value;
+            setFormData(prev => ({ 
+              ...prev, 
+              target_departments: value === 'all' ? ['all'] : [value]
+            }));
+          }}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] ${
+            errors.target_departments ? 'border-red-300' : 'border-gray-300'
+          }`}
+        >
+          <option value="">Select a SRC department</option>
+          <option value="all">All SRC Departments</option>
+          {departments.map((dept) => (
+            <option key={dept.id} value={dept.id}>
+              {dept.name}
+            </option>
+          ))}
+        </select>
+        {errors.target_departments && (
+          <p className="mt-1 text-sm text-red-600">{errors.target_departments}</p>
+        )}
+        {formData.target_departments[0] && formData.target_departments[0] !== 'all' && (
+          <p className="mt-1 text-xs text-gray-500">
+            {departments.find(d => d.id === formData.target_departments[0])?.description}
+          </p>
         )}
       </div>
 

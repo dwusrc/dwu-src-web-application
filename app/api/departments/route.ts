@@ -23,7 +23,7 @@ export async function GET() {
     }
   );
 
-  // Verify user is authenticated (any authenticated user can view departments)
+  // Verify user is authenticated (any role can access)
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

@@ -48,18 +48,49 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         student:profiles!complaints_student_id_fkey(id, full_name, student_id, department, year_level),
-        assigned_to:profiles!complaints_assigned_to_fkey(id, full_name, role),
-        claimed_by:profiles!complaints_claimed_by_fkey(id, full_name, role),
-        assigned_department:src_departments!complaints_assigned_department_fkey(id, name, color)
+        assigned_to:profiles!complaints_assigned_to_fkey(id, full_name, role)
       `, { count: 'exact' })
       .order('created_at', { ascending: false });
 
-    // Role-based filtering - RLS policies handle the department access automatically
+    // Role-based filtering
     if (profile.role === 'student') {
       // Students can only see their own complaints
       query = query.eq('student_id', user.id);
+    } else if (profile.role === 'src') {
+      // SRC members see complaints that target their department OR are assigned to them
+      if (profile.src_department) {
+        // Get the department ID for the SRC member
+        const { data: departmentData } = await supabase
+          .from('src_departments')
+          .select('id')
+          .eq('name', profile.src_department)
+          .single();
+        
+        if (departmentData) {
+          // Get complaints that target this department OR are assigned to this SRC member
+          const { data: departmentComplaints } = await supabase
+            .from('complaint_departments')
+            .select('complaint_id')
+            .eq('department_id', departmentData.id);
+          
+          if (departmentComplaints && departmentComplaints.length > 0) {
+            const complaintIds = departmentComplaints.map(dc => dc.complaint_id);
+            // Show complaints that target their department OR are assigned to them
+            query = query.or(`id.in.(${complaintIds.join(',')}),assigned_to.eq.${user.id}`);
+          } else {
+            // If no complaints target their department, only show assigned ones
+            query = query.eq('assigned_to', user.id);
+          }
+        } else {
+          // If department not found, only show assigned complaints
+          query = query.eq('assigned_to', user.id);
+        }
+      } else {
+        // If no department assigned, only show assigned complaints
+        query = query.eq('assigned_to', user.id);
+      }
     }
-    // SRC and Admin access is handled by RLS policies
+    // Admins can see all complaints (no additional filtering)
 
     // Apply filters
     if (status) {
@@ -81,40 +112,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch complaints' }, { status: 500 });
     }
 
-    // Fetch department information for each complaint using the departments_selected array
+    // Fetch department information for each complaint
     if (complaints && complaints.length > 0) {
-      // Get all unique department IDs from all complaints
-      const allDepartmentIds = [...new Set(
-        complaints.flatMap(c => c.departments_selected || [])
-      )];
-
-      // Fetch all department data in one query
-      const { data: allDepartmentData } = await supabase
-        .from('src_departments')
-        .select('id, name, color')
-        .in('id', allDepartmentIds);
-
-      // Create a lookup map for department data
-      const departmentMap = new Map(
-        allDepartmentData?.map(d => [d.id, d]) || []
-      );
+      const complaintIds = complaints.map(c => c.id);
+      const { data: departmentData } = await supabase
+        .from('complaint_departments')
+        .select(`
+          complaint_id,
+          src_departments!complaint_departments_department_id_fkey(id, name, color, description)
+        `)
+        .in('complaint_id', complaintIds);
 
       // Map department data to complaints
       const complaintsWithDepartments = complaints.map(complaint => {
-        const target_department_names = (complaint.departments_selected || [])
-          .map((deptId: string) => departmentMap.get(deptId)?.name)
-          .filter(Boolean);
-        
-        const target_department_colors = (complaint.departments_selected || [])
-          .map((deptId: string) => departmentMap.get(deptId)?.color)
-          .filter(Boolean);
-
+        const complaintDepartments = departmentData?.filter(d => d.complaint_id === complaint.id) || [];
+        const departments = complaintDepartments.map(d => d.src_departments).filter(Boolean);
         return {
           ...complaint,
-          target_department_names,
-          target_department_colors,
-          claimed_by_profile: complaint.claimed_by,
-          assigned_department_info: complaint.assigned_department
+          departments
         };
       });
 
@@ -217,25 +232,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Prepare departments_selected array
-    let departments_selected: string[] = [];
-    
-    if (target_departments.includes('all')) {
-      // Get all active departments
-      const { data: allDepartments } = await supabase
-        .from('src_departments')
-        .select('id')
-        .eq('is_active', true);
-      
-      if (allDepartments && allDepartments.length > 0) {
-        departments_selected = allDepartments.map(dept => dept.id);
-      }
-    } else {
-      // Use specific departments
-      departments_selected = target_departments;
-    }
-
-    // Create complaint with departments_selected array
+    // Create complaint first
     const { data: complaint, error: complaintError } = await supabase
       .from('complaints')
       .insert({
@@ -244,14 +241,43 @@ export async function POST(request: NextRequest) {
         description,
         category,
         priority,
-        status: 'pending' as ComplaintStatus,
-        departments_selected
+        status: 'pending' as ComplaintStatus
       })
       .select()
       .single();
 
     if (complaintError) {
       return NextResponse.json({ error: 'Failed to create complaint' }, { status: 500 });
+    }
+
+    // Handle department assignments
+    if (target_departments.includes('all')) {
+      // Get all active departments
+      const { data: allDepartments } = await supabase
+        .from('src_departments')
+        .select('id')
+        .eq('is_active', true);
+      
+      if (allDepartments && allDepartments.length > 0) {
+        const departmentRecords = allDepartments.map(dept => ({
+          complaint_id: complaint.id,
+          department_id: dept.id
+        }));
+        
+        await supabase
+          .from('complaint_departments')
+          .insert(departmentRecords);
+      }
+    } else {
+      // Insert specific departments
+      const departmentRecords = target_departments.map((deptId: string) => ({
+        complaint_id: complaint.id,
+        department_id: deptId
+      }));
+      
+      await supabase
+        .from('complaint_departments')
+        .insert(departmentRecords);
     }
 
     // Return complaint with full details

@@ -9,7 +9,7 @@ import ComplaintList from '@/app/components/complaints/complaint-list';
 
 
 
-import { Complaint, ComplaintStatus } from '@/types/supabase';
+import { Complaint, ComplaintStatus, SrcDepartment } from '@/types/supabase';
 import { useSession } from '@/app/contexts/session-context';
 
 // Type for complaint with related data
@@ -26,6 +26,8 @@ type ComplaintWithRelations = Complaint & {
     full_name: string;
     role: string;
   };
+  // Add department information for display
+  departments?: SrcDepartment[];
 };
 
 interface DashboardStats {
@@ -98,10 +100,13 @@ export default function SRCDashboard() {
   const fetchComplaints = async (page: number = 1) => {
     setLoading(true);
     try {
+      console.log(`Fetching complaints for page ${page}...`);
       const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('Raw complaints data:', data);
         const transformedComplaints = transformComplaints(data.complaints || []);
+        console.log('Transformed complaints:', transformedComplaints);
         setComplaints(transformedComplaints);
         setTotalCount(data.pagination?.total || 0);
       } else {
@@ -149,6 +154,48 @@ export default function SRCDashboard() {
     // Open the complaint view modal for responding
     setSelectedComplaint(complaint);
     setShowComplaintModal(true);
+  };
+
+  const handleClaimComplaint = async (complaint: ComplaintWithRelations, action: 'claim' | 'unclaim') => {
+    try {
+      console.log(`Attempting to ${action} complaint:`, complaint.id);
+      
+      const response = await fetch(`/api/complaints/${complaint.id}/claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update claim status');
+      }
+
+      const result = await response.json();
+      console.log('Claim response:', result);
+      
+      // Show success message
+      alert(result.message || `Complaint ${action}ed successfully`);
+      
+      // Force a complete refresh by clearing complaints first, then fetching
+      console.log('Refreshing complaints...');
+      setComplaints([]);
+      setLoading(true);
+      
+      // Small delay to ensure the database update is processed
+      setTimeout(async () => {
+        console.log('Fetching updated complaints...');
+        await fetchComplaints(currentPage);
+        setLoading(false);
+        console.log('Complaints refreshed');
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error updating claim status:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update claim status');
+    }
   };
 
   const handleUpdateStatus = async (complaint: ComplaintWithRelations, status: ComplaintStatus) => {
@@ -465,6 +512,7 @@ export default function SRCDashboard() {
                 onView={(complaint) => handleViewComplaint(complaint as ComplaintWithRelations)}
                 onAssign={(complaint) => handleAssignComplaint(complaint as ComplaintWithRelations)}
                 onRespond={(complaint) => handleRespondToComplaint(complaint as ComplaintWithRelations)}
+                onClaim={handleClaimComplaint}
                 userRole="src"
                 currentUserId={session?.user?.id}
                 showFilters={true}

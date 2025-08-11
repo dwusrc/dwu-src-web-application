@@ -12,6 +12,7 @@ interface ComplaintListProps {
   onDelete?: (complaint: ComplaintWithRelations) => void;
   onAssign?: (complaint: ComplaintWithRelations) => void;
   onRespond?: (complaint: ComplaintWithRelations) => void;
+  onClaim?: (complaint: ComplaintWithRelations, action: 'claim' | 'unclaim') => Promise<void>;
   userRole?: 'student' | 'src' | 'admin';
   currentUserId?: string;
   showFilters?: boolean;
@@ -54,6 +55,7 @@ export default function ComplaintList({
   onDelete,
   onAssign,
   onRespond,
+  onClaim,
   userRole,
   currentUserId,
   showFilters = true,
@@ -89,6 +91,13 @@ export default function ComplaintList({
       setSortBy(field);
       setSortOrder('desc');
     }
+  };
+
+  const handleClaimAction = async (complaint: ComplaintWithRelations) => {
+    if (!onClaim) return;
+    
+    const action = complaint.is_claimed && complaint.claimed_by_profile?.id === currentUserId ? 'unclaim' : 'claim';
+    await onClaim(complaint, action);
   };
 
   const filteredComplaints = complaints.filter(complaint => {
@@ -248,6 +257,12 @@ export default function ComplaintList({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Category
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Target Department
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Claim Status
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('priority')}>
                 <div className="flex items-center">
                   Priority
@@ -275,7 +290,7 @@ export default function ComplaintList({
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedComplaints.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={10} className="px-6 py-4 text-center text-gray-500">
                   No complaints found
                 </td>
               </tr>
@@ -305,6 +320,50 @@ export default function ComplaintList({
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                       {CATEGORY_LABELS[complaint.category]}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {complaint.target_department_names && complaint.target_department_names.length > 0 ? (
+                      <div className="space-y-1">
+                        {complaint.target_department_names.map((deptName, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                            style={{
+                              backgroundColor: `${complaint.target_department_colors?.[index] || '#359d49'}20`,
+                              color: complaint.target_department_colors?.[index] || '#359d49',
+                              border: `1px solid ${complaint.target_department_colors?.[index] || '#359d49'}40`
+                            }}
+                          >
+                            {deptName}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">All Departments</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {complaint.is_claimed ? (
+                      <div className="space-y-1">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Claimed
+                        </span>
+                        {complaint.assigned_department_info && (
+                          <div className="text-xs text-gray-600">
+                            by {complaint.assigned_department_info.name}
+                          </div>
+                        )}
+                        {complaint.claimed_by_profile && (
+                          <div className="text-xs text-gray-500">
+                            {complaint.claimed_by_profile.full_name}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        Unclaimed
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_CONFIG[complaint.priority].bgColor} ${PRIORITY_CONFIG[complaint.priority].color}`}>
@@ -350,6 +409,19 @@ export default function ComplaintList({
                           className="text-xs bg-[#359d49] text-white hover:bg-[#2a6b39]"
                         >
                           Assign
+                        </Button>
+                      )}
+                      {/* Claim/Unclaim Button for SRC members */}
+                      {userRole === 'src' && !complaint.assigned_to && (
+                        <Button
+                          onClick={() => handleClaimAction(complaint)}
+                          className={`text-xs ${
+                            complaint.is_claimed && complaint.claimed_by_profile?.id === currentUserId
+                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          {complaint.is_claimed && complaint.claimed_by_profile?.id === currentUserId ? 'Unclaim' : 'Claim'}
                         </Button>
                       )}
                       {onRespond && (userRole === 'src' || userRole === 'admin') && 

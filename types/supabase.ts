@@ -64,6 +64,12 @@ export interface Complaint {
   assigned_to?: string;
   response?: string;
   resolved_at?: string;
+  // Department-based complaint routing
+  departments_selected: string[]; // Array of SRC department IDs
+  assigned_department?: string; // Single department that claimed the complaint
+  is_claimed: boolean; // Whether the complaint has been claimed by a department
+  claimed_at?: string; // Timestamp when the complaint was claimed
+  claimed_by?: string; // SRC member who claimed the complaint
   created_at: string;
   updated_at: string;
 }
@@ -81,7 +87,41 @@ export type ComplaintWithRelations = Complaint & {
     full_name: string;
     role: string;
   };
+  // Department information for display (derived from departments_selected array)
+  target_department_names?: string[]; // Array of department names
+  target_department_colors?: string[]; // Array of department colors
+  // Claim information for display
+  claimed_by_profile?: {
+    id: string;
+    full_name: string;
+    role: string;
+  };
+  assigned_department_info?: {
+    id: string;
+    name: string;
+    color: string;
+  };
 };
+
+// Department-based complaint routing types
+
+export interface SrcDepartment {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+// Form data for complaint submission
+export interface ComplaintFormData {
+  title: string;
+  description: string;
+  category: ComplaintCategory;
+  priority: ComplaintPriority;
+  target_departments: string[]; // Array of department IDs or 'all'
+}
 
 export interface ProjectProposal {
   id: string;
