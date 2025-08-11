@@ -166,6 +166,28 @@ CREATE INDEX idx_complaints_is_claimed ON complaints(is_claimed);
 -- Composite index for department + status queries
 CREATE INDEX idx_complaints_dept_status ON complaints(departments_selected, status);
 ```
+
+### 3.2. **Database Schema Simplification (IMPLEMENTED)**
+```sql
+-- REMOVED: complaint_departments junction table (was causing conflicts)
+-- DROP TABLE IF EXISTS complaint_departments CASCADE;
+
+-- UPDATED: Using departments_selected array field directly in complaints table
+-- This approach is simpler, more performant, and avoids foreign key constraint conflicts
+
+-- Current working structure:
+-- complaints.departments_selected: UUID[] - Array of SRC department IDs
+-- complaints.assigned_department: UUID - Single department that claimed the complaint  
+-- complaints.is_claimed: BOOLEAN - Whether complaint has been claimed
+-- complaints.claimed_at: TIMESTAMP - When complaint was claimed
+-- complaints.claimed_by: UUID - SRC member who claimed the complaint
+
+-- Benefits of array approach:
+-- ✅ Direct queries without joins
+-- ✅ Better performance with GIN indexes
+-- ✅ Simpler application logic
+-- ✅ No constraint conflicts during updates
+-- ✅ Claim functionality now works properly
 ```
 
 ### 4. **project_proposals** (Student Project Proposals)

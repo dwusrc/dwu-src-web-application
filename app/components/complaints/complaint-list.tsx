@@ -13,6 +13,9 @@ interface ComplaintListProps {
   onAssign?: (complaint: ComplaintWithRelations) => void;
   onRespond?: (complaint: ComplaintWithRelations) => void;
   onClaim?: (complaint: ComplaintWithRelations, action: 'claim' | 'unclaim') => Promise<void>;
+  onUpdateStatus?: (complaint: ComplaintWithRelations, status: ComplaintStatus) => Promise<void>;
+  onUpdatePriority?: (complaint: ComplaintWithRelations, priority: ComplaintPriority) => Promise<void>;
+  onAddResponse?: (complaint: ComplaintWithRelations, response: string) => Promise<void>;
   userRole?: 'student' | 'src' | 'admin';
   currentUserId?: string;
   showFilters?: boolean;
@@ -56,6 +59,9 @@ export default function ComplaintList({
   onAssign,
   onRespond,
   onClaim,
+  onUpdateStatus,
+  onUpdatePriority,
+  onAddResponse,
   userRole,
   currentUserId,
   showFilters = true,
@@ -303,6 +309,11 @@ export default function ComplaintList({
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900 max-w-xs truncate">
                       {complaint.title}
+                      {complaint.response && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          💬 Has Response
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm text-gray-500 max-w-xs truncate">
                       {complaint.description.substring(0, 60)}...
@@ -424,6 +435,54 @@ export default function ComplaintList({
                           {complaint.is_claimed && complaint.claimed_by_profile?.id === currentUserId ? 'Unclaim' : 'Claim'}
                         </Button>
                       )}
+                      
+                      {/* Quick Status Update for SRC members */}
+                      {userRole === 'src' && onUpdateStatus && (
+                        <select
+                          value={complaint.status}
+                          onChange={(e) => onUpdateStatus(complaint, e.target.value as ComplaintStatus)}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49] bg-white"
+                        >
+                          <option value="pending">⏳ Pending</option>
+                          <option value="in_progress">🔄 In Progress</option>
+                          <option value="resolved">✅ Resolved</option>
+                          <option value="closed">🔒 Closed</option>
+                        </select>
+                      )}
+                      
+                      {/* Quick Priority Update for SRC members */}
+                      {userRole === 'src' && onUpdatePriority && (
+                        <select
+                          value={complaint.priority}
+                          onChange={(e) => onUpdatePriority(complaint, e.target.value as ComplaintPriority)}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49] bg-white"
+                        >
+                          <option value="low">🟢 Low</option>
+                          <option value="medium">🟡 Medium</option>
+                          <option value="high">🟠 High</option>
+                          <option value="urgent">🔴 Urgent</option>
+                        </select>
+                      )}
+                      
+                      {/* Quick Response for SRC members */}
+                      {userRole === 'src' && onAddResponse && (
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              onAddResponse(complaint, e.target.value);
+                              e.target.value = ''; // Reset selection
+                            }
+                          }}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49] bg-white"
+                        >
+                          <option value="">💬 Quick Response</option>
+                          <option value="We have received your complaint and are investigating the issue.">Received & Investigating</option>
+                          <option value="We are currently working on resolving your complaint.">Working on it</option>
+                          <option value="Your complaint has been resolved. Please let us know if you need anything else.">Resolved</option>
+                          <option value="We need more information to proceed. Please contact us.">Need More Info</option>
+                        </select>
+                      )}
+                      
                       {onRespond && (userRole === 'src' || userRole === 'admin') && 
                         (userRole === 'admin' || complaint.assigned_to?.id === currentUserId) && (
                         <Button

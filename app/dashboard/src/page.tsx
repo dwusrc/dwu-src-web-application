@@ -100,13 +100,10 @@ export default function SRCDashboard() {
   const fetchComplaints = async (page: number = 1) => {
     setLoading(true);
     try {
-      console.log(`Fetching complaints for page ${page}...`);
       const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Raw complaints data:', data);
         const transformedComplaints = transformComplaints(data.complaints || []);
-        console.log('Transformed complaints:', transformedComplaints);
         setComplaints(transformedComplaints);
         setTotalCount(data.pagination?.total || 0);
       } else {
@@ -158,7 +155,6 @@ export default function SRCDashboard() {
 
   const handleClaimComplaint = async (complaint: ComplaintWithRelations, action: 'claim' | 'unclaim') => {
     try {
-      console.log(`Attempting to ${action} complaint:`, complaint.id);
       
       const response = await fetch(`/api/complaints/${complaint.id}/claim`, {
         method: 'POST',
@@ -174,26 +170,21 @@ export default function SRCDashboard() {
       }
 
       const result = await response.json();
-      console.log('Claim response:', result);
       
       // Show success message
       alert(result.message || `Complaint ${action}ed successfully`);
       
       // Force a complete refresh by clearing complaints first, then fetching
-      console.log('Refreshing complaints...');
       setComplaints([]);
       setLoading(true);
       
       // Small delay to ensure the database update is processed
       setTimeout(async () => {
-        console.log('Fetching updated complaints...');
         await fetchComplaints(currentPage);
         setLoading(false);
-        console.log('Complaints refreshed');
       }, 100);
       
     } catch (error) {
-      console.error('Error updating claim status:', error);
       alert(error instanceof Error ? error.message : 'Failed to update claim status');
     }
   };
@@ -214,11 +205,62 @@ export default function SRCDashboard() {
         if (selectedComplaint?.id === complaint.id) {
           setSelectedComplaint(data.complaint);
         }
+        alert('Status updated successfully');
       } else {
         alert('Failed to update complaint status');
       }
     } catch {
       alert('Failed to update complaint status');
+    }
+  };
+
+  const handleUpdatePriority = async (complaint: ComplaintWithRelations, priority: string) => {
+    try {
+      const response = await fetch(`/api/complaints/${complaint.id}/priority`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ priority }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
+        if (selectedComplaint?.id === complaint.id) {
+          setSelectedComplaint(data.complaint);
+        }
+        alert('Priority updated successfully');
+      } else {
+        alert('Failed to update complaint priority');
+      }
+    } catch {
+      alert('Failed to update complaint priority');
+    }
+  };
+
+  const handleAddResponse = async (complaint: ComplaintWithRelations, response: string) => {
+    try {
+      const apiResponse = await fetch(`/api/complaints/${complaint.id}/response`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ response }),
+      });
+
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
+        if (selectedComplaint?.id === complaint.id) {
+          setSelectedComplaint(data.complaint);
+        }
+        alert('Response added successfully');
+      } else {
+        alert('Failed to add response');
+      }
+    } catch {
+      alert('Failed to add response');
     }
   };
 
@@ -513,6 +555,9 @@ export default function SRCDashboard() {
                 onAssign={(complaint) => handleAssignComplaint(complaint as ComplaintWithRelations)}
                 onRespond={(complaint) => handleRespondToComplaint(complaint as ComplaintWithRelations)}
                 onClaim={handleClaimComplaint}
+                onUpdateStatus={handleUpdateStatus}
+                onUpdatePriority={handleUpdatePriority}
+                onAddResponse={handleAddResponse}
                 userRole="src"
                 currentUserId={session?.user?.id}
                 showFilters={true}
@@ -804,6 +849,63 @@ export default function SRCDashboard() {
                     <p className="text-sm text-gray-600 mt-1">Submitted by {selectedComplaint.student?.full_name} from {selectedComplaint.student?.department}</p>
                     <p className="text-sm text-gray-600 mt-2">{selectedComplaint.description}</p>
                   </div>
+                  
+                  {/* Quick Action Buttons */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h5 className="text-sm font-medium text-gray-700 mb-3">Quick Actions</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Status Update */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Update Status</label>
+                        <select 
+                          defaultValue={selectedComplaint.status}
+                          onChange={(e) => handleUpdateStatus(selectedComplaint, e.target.value as ComplaintStatus)}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
+                      
+                      {/* Priority Update */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Update Priority</label>
+                        <select 
+                          defaultValue={selectedComplaint.priority}
+                          onChange={(e) => handleUpdatePriority(selectedComplaint, e.target.value)}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                      </div>
+                      
+                      {/* Quick Response */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Quick Response</label>
+                        <select 
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleAddResponse(selectedComplaint, e.target.value);
+                              e.target.value = ''; // Reset selection
+                            }
+                          }}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                        >
+                          <option value="">Select response...</option>
+                          <option value="We have received your complaint and are investigating the issue.">Received & Investigating</option>
+                          <option value="We are currently working on resolving your complaint.">Working on it</option>
+                          <option value="Your complaint has been resolved. Please let us know if you need anything else.">Resolved</option>
+                          <option value="We need more information to proceed. Please contact us.">Need More Info</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
