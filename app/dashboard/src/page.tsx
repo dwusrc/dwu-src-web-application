@@ -7,8 +7,7 @@ import { Button } from '@/app/components/ui/button';
 import NewsManagement from '@/app/components/news/news-management';
 import ComplaintList from '@/app/components/complaints/complaint-list';
 
-// Lazy load chat interfaces
-const SRCChatInterface = lazy(() => import('@/app/components/chat/src-chat-interface'));
+
 
 import { Complaint, ComplaintStatus } from '@/types/supabase';
 import { useSession } from '@/app/contexts/session-context';
@@ -411,7 +410,7 @@ export default function SRCDashboard() {
                     onClick={() => setActiveTab('communication')}
                     className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
                   >
-                    💬 Chat Mod
+                    💬 Comm Center
                   </Button>
                   <Button
                     onClick={() => setActiveTab('services')}
@@ -559,25 +558,9 @@ export default function SRCDashboard() {
           {/* Communication Tab */}
           {activeTab === 'communication' && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Student Chat Management</h2>
-                <div className="text-sm text-gray-600">
-                  Manage conversations with students from your department
-                </div>
-              </div>
-              
-              {/* Chat Interface */}
-              <div className="bg-white rounded-lg shadow-md" style={{ minHeight: '600px', maxHeight: '80vh' }}>
-                <Suspense fallback={
-                  <div className="flex items-center justify-center h-64">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49] mx-auto mb-2"></div>
-                      <p className="text-gray-600">Loading chat interface...</p>
-                    </div>
-                  </div>
-                }>
-                  <SRCChatInterface />
-                </Suspense>
+              <h2 className="text-2xl font-bold text-gray-900">Communication Center</h2>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <p className="text-gray-600">Communication features coming soon...</p>
               </div>
             </div>
           )}

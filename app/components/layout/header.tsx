@@ -99,9 +99,6 @@ export function Header({ className }: HeaderProps) {
         <Link href="/forum" className="hover:underline underline-offset-4">
           Forum
         </Link>
-        <Link href="/chat" className="hover:underline underline-offset-4">
-          Chat
-        </Link>
         <Link href="/reports" className="hover:underline underline-offset-4">
           Reports
         </Link>

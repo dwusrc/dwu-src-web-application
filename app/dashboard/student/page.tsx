@@ -13,7 +13,7 @@ const FeaturedNews = lazy(() => import('@/app/components/news/featured-news'));
 const ComplaintForm = lazy(() => import('@/app/components/forms/complaint-form'));
 const ComplaintList = lazy(() => import('@/app/components/complaints/complaint-list'));
 const ComplaintView = lazy(() => import('@/app/components/forms/complaint-view'));
-const ChatInterface = lazy(() => import('@/app/components/chat/chat-interface'));
+
 
 // Loading component for lazy-loaded components
 const LoadingSpinner = () => (
@@ -26,7 +26,6 @@ interface DashboardStats {
   myComplaints: number;
   myProposals: number;
   newsUpdates: number;
-  chatMessages: number;
 }
 
 interface Proposal {
@@ -37,20 +36,14 @@ interface Proposal {
   feedback?: string;
 }
 
-interface ChatMessage {
-  id: string;
-  from: string;
-  message: string;
-  timestamp: string;
-  unread: boolean;
-}
+
 
 export default function StudentDashboard() {
   const { session } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
-  const [showChatModal, setShowChatModal] = useState(false);
+
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
   const [complaints, setComplaints] = useState<ComplaintWithRelations[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +57,6 @@ export default function StudentDashboard() {
     myComplaints: complaints.length,
     myProposals: 2,
     newsUpdates: 5,
-    chatMessages: 1,
   };
 
   const proposals: Proposal[] = [
@@ -83,15 +75,7 @@ export default function StudentDashboard() {
     },
   ];
 
-  const chatMessages: ChatMessage[] = [
-    {
-      id: '1',
-      from: 'SRC Member',
-      message: 'We have received your complaint and are working on it.',
-      timestamp: '2024-01-15 10:30',
-      unread: true,
-    },
-  ];
+
 
   // Transform complaint data to match component expectations
   const transformComplaints = (complaints: unknown[]): ComplaintWithRelations[] => {
@@ -276,7 +260,6 @@ export default function StudentDashboard() {
     { id: 'news', name: 'News & Updates', shortName: 'News', icon: '📢' },
     { id: 'complaints', name: 'My Complaints', shortName: 'Complaints', icon: '⚠️' },
     { id: 'proposals', name: 'My Proposals', shortName: 'Proposals', icon: '📋' },
-    { id: 'chat', name: 'Chat', shortName: 'Chat', icon: '💬' },
     { id: 'forums', name: 'Forums', shortName: 'Forums', icon: '📝' },
     { id: 'profile', name: 'Profile', shortName: 'Profile', icon: '👤' },
   ];
@@ -443,17 +426,7 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <span className="text-2xl">💬</span>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Chat Messages</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.chatMessages}</p>
-                    </div>
-                  </div>
-                </div>
+
               </div>
 
               {/* Quick Actions */}
@@ -472,12 +445,7 @@ export default function StudentDashboard() {
                   >
                     Submit Proposal
                   </Button>
-                  <Button
-                    onClick={() => setShowChatModal(true)}
-                    className="w-full bg-purple-600 hover:bg-purple-700"
-                  >
-                    Start Chat
-                  </Button>
+
                 </div>
               </div>
 
@@ -575,22 +543,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* Chat Tab */}
-          {activeTab === 'chat' && (
-            <Suspense fallback={<LoadingSpinner />}>
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-gray-900">Chat with SRC Members</h2>
-                </div>
-                <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: '600px' }}>
-                  <ChatInterface
-                    currentUserId={session?.user?.id || ''}
-                    userRole="student"
-                  />
-                </div>
-              </div>
-            </Suspense>
-          )}
+
 
           {/* Forums Tab */}
           {activeTab === 'forums' && (
@@ -729,28 +682,7 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Chat Modal */}
-        {showChatModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Start New Chat</h3>
-                  <button
-                    onClick={() => setShowChatModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <span className="sr-only">Close</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <p className="text-gray-600">Chat functionality coming soon...</p>
-              </div>
-            </div>
-          </div>
-        )}
+
       </PageLayout>
     </ProtectedRoute>
   );

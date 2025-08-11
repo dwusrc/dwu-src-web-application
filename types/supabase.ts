@@ -7,8 +7,8 @@ export type ComplaintPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved' | 'closed' | 'rejected';
 export type ProposalStatus = 'pending' | 'under_review' | 'approved' | 'rejected';
 export type ForumCategory = 'general' | 'academic' | 'events' | 'suggestions' | 'announcements';
-export type MessageType = 'text' | 'image' | 'file';
-export type NotificationType = 'complaint_update' | 'news_post' | 'forum_reply' | 'chat_message' | 'system';
+
+export type NotificationType = 'complaint_update' | 'news_post' | 'forum_reply' | 'system';
 
 export interface Profile {
   id: string;
@@ -125,25 +125,7 @@ export interface ForumReply {
   updated_at: string;
 }
 
-export interface ChatConversation {
-  id: string;
-  student_id: string;
-  src_member_id: string;
-  is_active: boolean;
-  last_message_at: string;
-  created_at: string;
-  updated_at: string;
-}
 
-export interface ChatMessage {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content: string;
-  message_type: MessageType;
-  is_read: boolean;
-  created_at: string;
-}
 
 export interface Report {
   id: string;

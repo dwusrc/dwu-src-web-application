@@ -4,7 +4,7 @@ interface UnreadBadgeProps {
   count: number;
   maxCount?: number;
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'chat' | 'notification';
+  variant?: 'default' | 'notification';
   className?: string;
   showZero?: boolean;
 }
@@ -34,8 +34,6 @@ export function UnreadBadge({
 
   const getVariantClasses = () => {
     switch (variant) {
-      case 'chat':
-        return 'bg-blue-500 text-white border-2 border-white';
       case 'notification':
         return 'bg-orange-500 text-white border-2 border-white';
       default:

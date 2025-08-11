@@ -20,11 +20,7 @@ const features = [
     description: "File complaints and track their resolution status with transparency.",
     icon: "📣"
   },
-  {
-    title: "Student Chat",
-    description: "Chat directly with SRC members for support and guidance.",
-    icon: "💬"
-  },
+
   {
     title: "Discussion Forums",
     description: "Engage in open discussions and reply to public topics.",

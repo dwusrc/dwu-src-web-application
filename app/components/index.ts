@@ -18,11 +18,4 @@ export type { ButtonProps } from './ui/button';
 // News Components
 export { default as NewsManagement } from './news/news-management';
 export { default as NewsDisplay } from './news/news-display';
-export { default as FeaturedNews } from './news/featured-news';
-
-// Chat Components
-export { default as ChatInterface } from './chat/chat-interface';
-export { ChatConversationList } from './chat/chat-conversation-list';
-export { ChatMessageList } from './chat/chat-message-list';
-export { ChatInput } from './chat/chat-input';
-export { ChatSidebar } from './chat/chat-sidebar'; 
+export { default as FeaturedNews } from './news/featured-news'; 
