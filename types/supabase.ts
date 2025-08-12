@@ -90,17 +90,6 @@ export type ComplaintWithRelations = Complaint & {
   // Department information for display (derived from departments_selected array)
   target_department_names?: string[]; // Array of department names
   target_department_colors?: string[]; // Array of department colors
-  // Claim information for display
-  claimed_by_profile?: {
-    id: string;
-    full_name: string;
-    role: string;
-  };
-  assigned_department_info?: {
-    id: string;
-    name: string;
-    color: string;
-  };
 };
 
 // Department-based complaint routing types

@@ -48,9 +48,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         student:profiles!complaints_student_id_fkey(id, full_name, student_id, department, year_level),
-        assigned_to:profiles!complaints_assigned_to_fkey(id, full_name, role),
-        claimed_by:profiles!complaints_claimed_by_fkey(id, full_name, role),
-        assigned_department:src_departments!complaints_assigned_department_fkey(id, name, color)
+        assigned_to:profiles!complaints_assigned_to_fkey(id, full_name, role)
       `, { count: 'exact' })
       .order('created_at', { ascending: false });
 
@@ -112,9 +110,7 @@ export async function GET(request: NextRequest) {
         return {
           ...complaint,
           target_department_names,
-          target_department_colors,
-          claimed_by_profile: complaint.claimed_by,
-          assigned_department_info: complaint.assigned_department
+          target_department_colors
         };
       });
 

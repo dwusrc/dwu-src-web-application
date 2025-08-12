@@ -11,7 +11,6 @@ interface ComplaintListProps {
   onEdit?: (complaint: ComplaintWithRelations) => void;
   onDelete?: (complaint: ComplaintWithRelations) => void;
   onRespond?: (complaint: ComplaintWithRelations) => void;
-  onClaim?: (complaint: ComplaintWithRelations, action: 'claim' | 'unclaim') => Promise<void>;
   onUpdateStatus?: (complaint: ComplaintWithRelations, status: ComplaintStatus) => Promise<void>;
   onUpdatePriority?: (complaint: ComplaintWithRelations, priority: ComplaintPriority) => Promise<void>;
   onAddResponse?: (complaint: ComplaintWithRelations, response: string) => Promise<void>;
@@ -41,12 +40,12 @@ const PRIORITY_CONFIG: Record<ComplaintPriority, { label: string; color: string;
   urgent: { label: 'Urgent', color: 'text-red-800', bgColor: 'bg-red-100' },
 };
 
-const STATUS_CONFIG: Record<ComplaintStatus, { label: string; color: string; bgColor: string; icon: string }> = {
-  pending: { label: 'Pending', color: 'text-yellow-800', bgColor: 'bg-yellow-100', icon: '⏳' },
-  in_progress: { label: 'In Progress', color: 'text-blue-800', bgColor: 'bg-blue-100', icon: '🔄' },
-  resolved: { label: 'Resolved', color: 'text-green-800', bgColor: 'bg-green-100', icon: '✅' },
-  closed: { label: 'Closed', color: 'text-gray-800', bgColor: 'bg-gray-100', icon: '🔒' },
-  rejected: { label: 'Rejected', color: 'text-red-800', bgColor: 'bg-red-100', icon: '❌' },
+const STATUS_CONFIG: Record<ComplaintStatus, { label: string; icon: string; bgColor: string; color: string }> = {
+  pending: { label: 'Pending', icon: '⏳', bgColor: 'bg-yellow-100', color: 'text-yellow-800' },
+  in_progress: { label: 'In Progress', icon: '🔄', bgColor: 'bg-blue-100', color: 'text-blue-800' },
+  resolved: { label: 'Resolved', icon: '✅', bgColor: 'bg-green-100', color: 'text-green-800' },
+  closed: { label: 'Closed', icon: '🔒', bgColor: 'bg-gray-100', color: 'text-gray-800' },
+  rejected: { label: 'Rejected', icon: '❌', bgColor: 'bg-red-100', color: 'text-red-800' },
 };
 
 export default function ComplaintList({
@@ -56,7 +55,6 @@ export default function ComplaintList({
   onEdit,
   onDelete,
   onRespond,
-  onClaim,
   onUpdateStatus,
   onUpdatePriority,
   onAddResponse,
@@ -95,13 +93,6 @@ export default function ComplaintList({
       setSortBy(field);
       setSortOrder('desc');
     }
-  };
-
-  const handleClaimAction = async (complaint: ComplaintWithRelations) => {
-    if (!onClaim) return;
-    
-    const action = complaint.is_claimed && complaint.claimed_by_profile?.id === currentUserId ? 'unclaim' : 'claim';
-    await onClaim(complaint, action);
   };
 
   const filteredComplaints = complaints.filter(complaint => {
@@ -264,9 +255,6 @@ export default function ComplaintList({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Target Department
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Claim Status
-              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('priority')}>
                 <div className="flex items-center">
                   Priority
@@ -291,7 +279,7 @@ export default function ComplaintList({
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedComplaints.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
                   No complaints found
                 </td>
               </tr>
@@ -349,36 +337,13 @@ export default function ComplaintList({
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {complaint.is_claimed ? (
-                      <div className="space-y-1">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Claimed
-                        </span>
-                        {complaint.assigned_department_info && (
-                          <div className="text-xs text-gray-600">
-                            by {complaint.assigned_department_info.name}
-                          </div>
-                        )}
-                        {complaint.claimed_by_profile && (
-                          <div className="text-xs text-gray-500">
-                            {complaint.claimed_by_profile.full_name}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        Unclaimed
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[complaint.status].bgColor} ${STATUS_CONFIG[complaint.status].color}`}>
+                      {STATUS_CONFIG[complaint.status].icon} {STATUS_CONFIG[complaint.status].label}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_CONFIG[complaint.priority].bgColor} ${PRIORITY_CONFIG[complaint.priority].color}`}>
                       {PRIORITY_CONFIG[complaint.priority].label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[complaint.status].bgColor} ${STATUS_CONFIG[complaint.status].color}`}>
-                      {STATUS_CONFIG[complaint.status].icon} {STATUS_CONFIG[complaint.status].label}
                     </span>
                   </td>
 
@@ -398,20 +363,6 @@ export default function ComplaintList({
                           className="text-xs bg-green-100 text-green-700 hover:bg-green-200"
                         >
                           Edit
-                        </Button>
-                      )}
-
-                      {/* Claim/Unclaim Button for SRC members */}
-                      {userRole === 'src' && !complaint.assigned_to && (
-                        <Button
-                          onClick={() => handleClaimAction(complaint)}
-                          className={`text-xs ${
-                            complaint.is_claimed && complaint.claimed_by_profile?.id === currentUserId
-                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                          }`}
-                        >
-                          {complaint.is_claimed && complaint.claimed_by_profile?.id === currentUserId ? 'Unclaim' : 'Claim'}
                         </Button>
                       )}
                       

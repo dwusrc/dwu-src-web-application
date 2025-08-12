@@ -68,7 +68,7 @@ export async function POST(
     // Check if the complaint targets the assigned user's department
     const { data: complaintData } = await supabase
       .from('complaints')
-      .select('departments_selected, assigned_department')
+      .select('departments_selected')
       .eq('id', resolvedParams.id)
       .single();
 
@@ -77,35 +77,17 @@ export async function POST(
     }
 
     // Verify the assigned user belongs to a department that can handle this complaint
-    if (complaintData.assigned_department) {
-      // If complaint is already claimed by a department, we need to get the department name first
-      const { data: deptInfo } = await supabase
+    if (complaintData.departments_selected && complaintData.departments_selected.length > 0) {
+      // Get department names from the IDs
+      const { data: deptInfos } = await supabase
         .from('src_departments')
         .select('name')
-        .eq('id', complaintData.assigned_department)
-        .single();
+        .in('id', complaintData.departments_selected);
       
-      if (!deptInfo) {
-        return NextResponse.json({ error: 'Department information not found' }, { status: 404 });
-      }
-      
-      // Now compare department names
-      if (assignedUser.src_department !== deptInfo.name) {
-        return NextResponse.json({ error: 'Can only assign to SRC members from the department that claimed this complaint' }, { status: 403 });
-      }
-    } else {
-      // If complaint is not claimed yet, we need to get department names from the IDs
-      if (complaintData.departments_selected && complaintData.departments_selected.length > 0) {
-        const { data: deptInfos } = await supabase
-          .from('src_departments')
-          .select('name')
-          .in('id', complaintData.departments_selected);
-        
-        if (deptInfos) {
-          const deptNames = deptInfos.map(d => d.name);
-          if (!deptNames.includes(assignedUser.src_department)) {
-            return NextResponse.json({ error: 'Can only assign to SRC members from departments that can handle this complaint' }, { status: 403 });
-          }
+      if (deptInfos) {
+        const deptNames = deptInfos.map(d => d.name);
+        if (!deptNames.includes(assignedUser.src_department)) {
+          return NextResponse.json({ error: 'Can only assign to SRC members from departments that can handle this complaint' }, { status: 403 });
         }
       }
     }

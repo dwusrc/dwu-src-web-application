@@ -125,11 +125,7 @@ CREATE TABLE complaints (
   response TEXT, -- SRC response
   resolved_at TIMESTAMP WITH TIME ZONE,
   -- Department-based complaint routing
-  departments_selected UUID[] NOT NULL DEFAULT '{}', -- Array of SRC department IDs that the complaint was sent to
-  assigned_department UUID REFERENCES src_departments(id), -- Single department that claimed the complaint
-  is_claimed BOOLEAN DEFAULT false, -- Whether the complaint has been claimed by a department
-  claimed_at TIMESTAMP WITH TIME ZONE, -- Timestamp when the complaint was claimed
-  claimed_by UUID REFERENCES profiles(id), -- SRC member who claimed the complaint
+  departments_selected UUID[] NOT NULL DEFAULT '{}', -- Array of SRC department IDs
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -146,10 +142,7 @@ CREATE TYPE complaint_status AS ENUM (
 
 -- Add comments for clarity
 COMMENT ON COLUMN complaints.departments_selected IS 'Array of SRC department IDs that the complaint was sent to';
-COMMENT ON COLUMN complaints.assigned_department IS 'Single department that claimed the complaint (for messaging rights)';
-COMMENT ON COLUMN complaints.is_claimed IS 'Whether the complaint has been claimed by a department';
-COMMENT ON COLUMN complaints.claimed_at IS 'Timestamp when the complaint was claimed';
-COMMENT ON COLUMN complaints.claimed_by IS 'SRC member who claimed the complaint';
+COMMENT ON COLUMN complaints.assigned_to IS 'SRC member assigned to handle this complaint (gives messaging rights)';
 ```
 
 ### 3.1. **Complaint Department Indexes and Performance**
@@ -157,11 +150,8 @@ COMMENT ON COLUMN complaints.claimed_by IS 'SRC member who claimed the complaint
 -- Index for department-based queries
 CREATE INDEX idx_complaints_departments_selected ON complaints USING GIN (departments_selected);
 
--- Index for assigned department queries
-CREATE INDEX idx_complaints_assigned_department ON complaints(assigned_department);
-
--- Index for claiming status
-CREATE INDEX idx_complaints_is_claimed ON complaints(is_claimed);
+-- Index for assignment queries
+CREATE INDEX idx_complaints_assigned_to ON complaints(assigned_to);
 
 -- Composite index for department + status queries
 CREATE INDEX idx_complaints_dept_status ON complaints(departments_selected, status);
@@ -323,13 +313,27 @@ ALTER TABLE forum_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+-- Notifications RLS Policies
+-- Users can view their own notifications
+CREATE POLICY "Users can view own notifications" ON notifications
+  FOR SELECT USING (user_id = auth.uid());
 
+-- Users can update their own notifications (mark as read)
+CREATE POLICY "Users can update own notifications" ON notifications
+  FOR UPDATE USING (user_id = auth.uid());
 
+-- System can create notifications for users (for triggers)
+CREATE POLICY "System can create notifications" ON notifications
+  FOR INSERT WITH CHECK (true);
 
-
-
-
-
+-- Admins can view all notifications
+CREATE POLICY "Admins can view all notifications" ON notifications
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
 ```
 
 ### Profiles RLS Policies
@@ -512,214 +516,71 @@ CREATE POLICY "Students and Admins can delete complaints" ON complaints
 ```
 
 ### Helper Functions for Department-Based Complaint Routing
-```sql
--- Function to check if a user can view a complaint based on their department
-CREATE OR REPLACE FUNCTION can_view_complaint(
-  complaint_id UUID,
-  user_id UUID
-) RETURNS BOOLEAN AS $func$
-DECLARE
-  user_role TEXT;
-  user_src_department TEXT;
-  complaint_departments UUID[];
-BEGIN
-  -- Get user role and department
-  SELECT role, src_department INTO user_role, user_src_department
-  FROM profiles WHERE id = user_id;
-  
-  -- Get complaint departments
-  SELECT departments_selected INTO complaint_departments
-  FROM complaints WHERE id = complaint_id;
-  
-  -- Students can always see their own complaints
-  IF user_role = 'student' THEN
-    RETURN EXISTS (SELECT 1 FROM complaints WHERE id = complaint_id AND student_id = user_id);
-  END IF;
-  
-  -- Admins can see all complaints
-  IF user_role = 'admin' THEN
-    RETURN true;
-  END IF;
-  
-  -- SRC members can see complaints that target their department
-  IF user_role = 'src' AND user_src_department IS NOT NULL THEN
-    RETURN EXISTS (
-      SELECT 1 FROM src_departments 
-      WHERE name = user_src_department 
-        AND id = ANY(complaint_departments)
-    );
-  END IF;
-  
-  RETURN false;
-END;
-$func$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 ```
 
+## 🚀 **NEW: Simplified Assignment-Only System (RECOMMENDED)**
 
+### **Why This Approach is Better:**
+- ✅ **Clearer workflow** - One person handles the complaint
+- ✅ **Better accountability** - Clear who is responsible  
+- ✅ **Simpler UI** - No confusing dual statuses
+- ✅ **More intuitive** - Users understand "assigned to John" vs "claimed by Department X"
 
-## 🔍 Helper Views for Department-Based Complaint Routing
+### **How It Works:**
+1. **Student submits complaint** → Targets specific departments
+2. **SRC member from target department** → Can assign to themselves or others
+3. **Assignment automatically gives messaging rights** to the assigned person
+4. **No separate "claiming" step needed**
 
-### Complaints with Departments View
+### **Updated Complaints Table Structure:**
 ```sql
--- View to get complaints with their target departments using the array field
-CREATE OR REPLACE VIEW complaints_with_departments AS
-SELECT 
-  c.*,
-  array_agg(sd.name) as target_department_names,
-  array_agg(sd.color) as target_department_colors
-FROM complaints c
-LEFT JOIN LATERAL unnest(c.departments_selected) AS dept_id ON true
-LEFT JOIN src_departments sd ON dept_id = sd.id
-GROUP BY c.id, c.student_id, c.title, c.description, c.category, c.priority, 
-         c.status, c.assigned_to, c.response, c.resolved_at, c.created_at, c.updated_at,
-         c.departments_selected, c.assigned_department, c.is_claimed, c.claimed_at, c.claimed_by;
-```
-
-### SRC Complaints by Department View
-```sql
--- View for SRC members to see complaints relevant to their department
-CREATE OR REPLACE VIEW src_complaints_by_department AS
-SELECT 
-  c.*,
-  p.src_department,
-  sd.name as department_name,
-  sd.color as department_color
-FROM complaints c
-JOIN LATERAL unnest(c.departments_selected) AS dept_id ON true
-JOIN src_departments sd ON dept_id = sd.id
-JOIN profiles p ON p.src_department = sd.name
-WHERE p.role = 'src' AND p.is_active = true;
-```
-
-## 🔄 Triggers & Functions
-
-### Update Timestamps
-```sql
--- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Apply to all tables with updated_at
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_news_posts_updated_at BEFORE UPDATE ON news_posts
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_complaints_updated_at BEFORE UPDATE ON complaints
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ... (apply to all other tables)
-```
-
-### Notification Triggers
-```sql
--- Function to create notification when complaint is assigned
-CREATE OR REPLACE FUNCTION notify_complaint_assigned()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.assigned_to IS NOT NULL AND NEW.assigned_to != OLD.assigned_to THEN
-    INSERT INTO notifications (user_id, title, message, type, reference_id, reference_type)
-    VALUES (
-      NEW.student_id,
-      'Complaint Assigned',
-      'Your complaint has been assigned to an SRC member for review.',
-      'complaint_update',
-      NEW.id,
-      'complaint'
-    );
-  END IF;
-  RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER complaint_assigned_notification
-  AFTER UPDATE ON complaints
-  FOR EACH ROW EXECUTE FUNCTION notify_complaint_assigned();
-```
-
-## 📊 Sample Data
-
-### Insert Sample Roles
-```sql
--- Insert sample admin user (you'll need to replace with actual auth.uid())
-INSERT INTO profiles (id, email, full_name, role) 
-VALUES (
-  '00000000-0000-0000-0000-000000000001',
-  'admin@dwu.ac.pg',
-  'System Administrator',
-  'admin'
+CREATE TABLE complaints (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category complaint_category NOT NULL,
+  priority complaint_priority DEFAULT 'medium',
+  status complaint_status DEFAULT 'pending',
+  assigned_to UUID REFERENCES profiles(id) ON DELETE SET NULL, -- SRC member assigned
+  response TEXT, -- SRC response
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  -- Department-based complaint routing
+  departments_selected UUID[] NOT NULL DEFAULT '{}', -- Array of SRC department IDs
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
-## 🚀 Complaints Table Migration Script (IMPLEMENTED)
-
-### **✅ This script has been executed in your Supabase database**
-
+### **Simplified Indexes:**
 ```sql
--- =====================================================
--- COMPLAINTS TABLE MIGRATION: Department-Based Routing
--- =====================================================
-
--- PHASE 1: Add New Fields to Complaints Table
-ALTER TABLE complaints 
-ADD COLUMN IF NOT EXISTS departments_selected UUID[] NOT NULL DEFAULT '{}',
-ADD COLUMN IF NOT EXISTS assigned_department UUID REFERENCES src_departments(id),
-ADD COLUMN IF NOT EXISTS is_claimed BOOLEAN DEFAULT false,
-ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP WITH TIME ZONE,
-ADD COLUMN IF NOT EXISTS claimed_by UUID REFERENCES profiles(id);
-
--- Add comments for clarity
-COMMENT ON COLUMN complaints.departments_selected IS 'Array of SRC department IDs that the complaint was sent to';
-COMMENT ON COLUMN complaints.assigned_department IS 'Single department that claimed the complaint (for messaging rights)';
-COMMENT ON COLUMN complaints.is_claimed IS 'Whether the complaint has been claimed by a department';
-COMMENT ON COLUMN complaints.claimed_at IS 'Timestamp when the complaint was claimed';
-COMMENT ON COLUMN complaints.claimed_by IS 'SRC member who claimed the complaint';
-
--- =====================================================
--- PHASE 2: Create New Indexes for Performance
--- =====================================================
-
 -- Index for department-based queries
-CREATE INDEX IF NOT EXISTS idx_complaints_departments_selected ON complaints USING GIN (departments_selected);
+CREATE INDEX idx_complaints_departments_selected ON complaints USING GIN (departments_selected);
 
--- Index for assigned department queries
-CREATE INDEX IF NOT EXISTS idx_complaints_assigned_department ON complaints(assigned_department);
-
--- Index for claiming status
-CREATE INDEX IF NOT EXISTS idx_complaints_is_claimed ON complaints(is_claimed);
+-- Index for assignment queries
+CREATE INDEX idx_complaints_assigned_to ON complaints(assigned_to);
 
 -- Composite index for department + status queries
-CREATE INDEX IF NOT EXISTS idx_complaints_dept_status ON complaints(departments_selected, status);
+CREATE INDEX idx_complaints_dept_status ON complaints(departments_selected, status);
+```
 
--- =====================================================
--- PHASE 3: Update Existing Complaints (Backfill)
--- =====================================================
+### **Migration Script to Remove Claim Fields:**
+```sql
+-- Remove claim-related columns
+ALTER TABLE complaints 
+DROP COLUMN IF EXISTS assigned_department,
+DROP COLUMN IF EXISTS is_claimed,
+DROP COLUMN IF EXISTS claimed_at,
+DROP COLUMN IF EXISTS claimed_by;
 
--- For existing complaints, set them to be visible to all departments
--- This ensures backward compatibility
-UPDATE complaints 
-SET departments_selected = (
-  SELECT array_agg(id) 
-  FROM src_departments 
-  WHERE is_active = true
-)
-WHERE departments_selected = '{}';
+-- Drop claim-related indexes
+DROP INDEX IF EXISTS idx_complaints_assigned_department;
+DROP INDEX IF EXISTS idx_complaints_is_claimed;
 
--- =====================================================
--- PHASE 4: Update RLS Policies
--- =====================================================
-
--- Drop old policies if they exist
+-- Update RLS policies to use assignment instead of claiming
 DROP POLICY IF EXISTS "SRC can view department complaints" ON complaints;
 
--- Add new SRC department access policy
 CREATE POLICY "SRC can view department complaints" ON complaints
   FOR SELECT USING (
     EXISTS (
@@ -734,76 +595,4 @@ CREATE POLICY "SRC can view department complaints" ON complaints
         )
     )
   );
-
--- =====================================================
--- PHASE 5: Create Helper Views
--- =====================================================
-
--- View to get complaints with their target departments using the array field
-CREATE OR REPLACE VIEW complaints_with_departments AS
-SELECT 
-  c.*,
-  array_agg(sd.name) as target_department_names,
-  array_agg(sd.color) as target_department_colors
-FROM complaints c
-LEFT JOIN LATERAL unnest(c.departments_selected) AS dept_id ON true
-LEFT JOIN src_departments sd ON dept_id = sd.id
-GROUP BY c.id, c.student_id, c.title, c.description, c.category, c.priority, 
-         c.status, c.assigned_to, c.response, c.resolved_at, c.created_at, c.updated_at,
-         c.departments_selected, c.assigned_department, c.is_claimed, c.claimed_at, c.claimed_by;
-
--- View for SRC members to see complaints relevant to their department
-CREATE OR REPLACE VIEW src_complaints_by_department AS
-SELECT 
-  c.*,
-  p.src_department,
-  sd.name as department_name,
-  sd.color as department_color
-FROM complaints c
-JOIN LATERAL unnest(c.departments_selected) AS dept_id ON true
-JOIN src_departments sd ON dept_id = sd.id
-JOIN profiles p ON p.src_department = sd.name
-WHERE p.role = 'src' AND p.is_active = true;
-
--- =====================================================
--- PHASE 6: Add Triggers
--- =====================================================
-
--- Trigger for complaints updated_at
-CREATE TRIGGER update_complaints_updated_at BEFORE UPDATE ON complaints
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- =====================================================
--- VERIFICATION
--- =====================================================
-
--- Check that the new fields were added
-SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns 
-WHERE table_name = 'complaints' 
-  AND column_name IN ('departments_selected', 'assigned_department', 'is_claimed', 'claimed_at', 'claimed_by');
-
--- Check that indexes were created
-SELECT indexname, indexdef 
-FROM pg_indexes 
-WHERE tablename = 'complaints' 
-  AND indexname LIKE '%departments%';
 ```
-
-**Status: ✅ IMPLEMENTED** - This migration has been successfully applied to your database.
-
-## 🚀 Next Steps
-
-1. **✅ Database migration completed** - The complaints table has been updated
-2. **✅ Application code updated** - All components now use the new array field approach
-3. **🧪 Test the new functionality** - Submit complaints and verify SRC dashboard
-4. **🔍 Verify everything works** - Check that complaints appear correctly for SRC members
-
-## 🔧 Environment Variables
-
-Add these to your `.env.local`:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-``` 

@@ -28,11 +28,8 @@ type ComplaintWithRelations = Complaint & {
   };
   // Add department information for display
   departments?: SrcDepartment[];
-  assigned_department_info?: {
-    id: string;
-    name: string;
-    color: string;
-  };
+  // Department information for assignment dropdown
+  target_departments?: SrcDepartment[];
 };
 
 interface DashboardStats {
@@ -127,10 +124,12 @@ export default function SRCDashboard() {
     setSelectedComplaint(complaint);
     setShowComplaintModal(true);
     
-    // Fetch department members if the complaint is claimed by a department
-    if (complaint.assigned_department_info?.id) {
-      fetchDepartmentMembers(complaint.assigned_department_info.id);
+    // Fetch department members from the target departments of the complaint
+    if (complaint.departments_selected && complaint.departments_selected.length > 0) {
+      // Fetch members from the first target department
+      fetchDepartmentMembers(complaint.departments_selected[0]);
     } else {
+      // If no target departments, clear the members list
       setDepartmentMembers([]);
     }
   };
@@ -151,42 +150,6 @@ export default function SRCDashboard() {
   const handleRespondToComplaint = async (complaint: ComplaintWithRelations) => {
     setSelectedComplaint(complaint);
     setShowComplaintModal(true);
-  };
-
-  const handleClaimComplaint = async (complaint: ComplaintWithRelations, action: 'claim' | 'unclaim') => {
-    try {
-      
-      const response = await fetch(`/api/complaints/${complaint.id}/claim`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update claim status');
-      }
-
-      const result = await response.json();
-      
-      // Show success message
-      alert(result.message || `Complaint ${action}ed successfully`);
-      
-      // Force a complete refresh by clearing complaints first, then fetching
-      setComplaints([]);
-      setLoading(true);
-      
-      // Small delay to ensure the database update is processed
-      setTimeout(async () => {
-        await fetchComplaints(currentPage);
-        setLoading(false);
-      }, 100);
-      
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update claim status');
-    }
   };
 
   const handleUpdateStatus = async (complaint: ComplaintWithRelations, status: ComplaintStatus) => {
@@ -553,7 +516,6 @@ export default function SRCDashboard() {
                 loading={loading}
                 onView={(complaint) => handleViewComplaint(complaint as ComplaintWithRelations)}
                 onRespond={(complaint) => handleRespondToComplaint(complaint as ComplaintWithRelations)}
-                onClaim={handleClaimComplaint}
                 onUpdateStatus={handleUpdateStatus}
                 onUpdatePriority={handleUpdatePriority}
                 onAddResponse={handleAddResponse}
@@ -887,7 +849,7 @@ export default function SRCDashboard() {
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Assign To</label>
                         <select 
-                          defaultValue={selectedComplaint.assigned_to?.id || ''}
+                          value={selectedComplaint.assigned_to?.id || ''}
                           onChange={(e) => {
                             const assignedTo = e.target.value;
                             if (assignedTo) {
@@ -899,6 +861,13 @@ export default function SRCDashboard() {
                               }).then(() => {
                                 // Refresh complaints after assignment
                                 fetchComplaints(currentPage);
+                                // Also refresh the modal data
+                                if (selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0) {
+                                  fetchDepartmentMembers(selectedComplaint.departments_selected[0]);
+                                }
+                              }).catch(error => {
+                                console.error('Assignment failed:', error);
+                                alert('Failed to assign complaint. Please try again.');
                               });
                             } else {
                               // Unassign
@@ -907,22 +876,41 @@ export default function SRCDashboard() {
                               }).then(() => {
                                 // Refresh complaints after unassignment
                                 fetchComplaints(currentPage);
+                                // Also refresh the modal data
+                                if (selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0) {
+                                  fetchDepartmentMembers(selectedComplaint.departments_selected[0]);
+                                }
+                              }).catch(error => {
+                                console.error('Unassignment failed:', error);
+                                alert('Failed to unassign complaint. Please try again.');
                               });
                             }
                           }}
                           className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
                         >
                           <option value="">Unassigned</option>
-                          {departmentMembers.length > 0 && (
-                            <optgroup label={`${selectedComplaint.assigned_department_info?.name} Members`}>
+                          {departmentMembers.length > 0 ? (
+                            <optgroup label="Department Members">
                               {departmentMembers.map((member) => (
                                 <option key={member.id} value={member.id}>
                                   {member.full_name}
                                 </option>
                               ))}
                             </optgroup>
+                          ) : (
+                            <option value="" disabled>No department members available</option>
                           )}
                         </select>
+                        {selectedComplaint.assigned_to && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Currently assigned to: {selectedComplaint.assigned_to.full_name}
+                          </p>
+                        )}
+                        {departmentMembers.length === 0 && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Loading department members...
+                          </p>
+                        )}
                       </div>
                       
                       {/* Quick Response */}

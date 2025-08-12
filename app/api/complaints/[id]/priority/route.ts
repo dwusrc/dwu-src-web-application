@@ -55,7 +55,7 @@ export async function PUT(
     // Check if complaint exists and user has permission
     const { data: existingComplaint } = await supabase
       .from('complaints')
-      .select('id, assigned_to, assigned_department, is_claimed, claimed_by')
+      .select('id, assigned_to')
       .eq('id', resolvedParams.id)
       .single();
 
@@ -63,42 +63,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Complaint not found' }, { status: 404 });
     }
 
-    // Check if user can update priority
-    let canUpdatePriority = false;
-    
-    if (profile.role === 'admin') {
-      canUpdatePriority = true;
-    } else if (profile.role === 'src') {
-      // SRC members can update if:
-      // 1. They are assigned to the complaint individually, OR
-      // 2. They claimed the complaint, OR
-      // 3. They belong to the department that claimed the complaint
-      if (existingComplaint.assigned_to === user.id) {
-        canUpdatePriority = true;
-      } else if (existingComplaint.is_claimed && existingComplaint.claimed_by === user.id) {
-        canUpdatePriority = true;
-      } else if (existingComplaint.assigned_department) {
-        // Check if user belongs to the assigned department
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('src_department')
-          .eq('id', user.id)
-          .single();
-        
-        if (userProfile?.src_department) {
-          const { data: deptInfo } = await supabase
-            .from('src_departments')
-            .select('name')
-            .eq('id', existingComplaint.assigned_department)
-            .single();
-          
-          canUpdatePriority = deptInfo?.name === userProfile.src_department;
-        }
-      }
-    }
+    // Check if user is assigned to this complaint or is admin
+    const canUpdate = 
+      profile.role === 'admin' ||
+      existingComplaint.assigned_to === user.id;
 
-    if (!canUpdatePriority) {
-      return NextResponse.json({ error: 'You do not have permission to update this complaint priority' }, { status: 500 });
+    if (!canUpdate) {
+      return NextResponse.json({ error: 'You do not have permission to update this complaint priority' }, { status: 403 });
     }
 
     // Update complaint priority
