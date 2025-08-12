@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
@@ -28,6 +28,11 @@ type ComplaintWithRelations = Complaint & {
   };
   // Add department information for display
   departments?: SrcDepartment[];
+  assigned_department_info?: {
+    id: string;
+    name: string;
+    color: string;
+  };
 };
 
 interface DashboardStats {
@@ -68,6 +73,7 @@ export default function SRCDashboard() {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [departmentMembers, setDepartmentMembers] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
 
   // Mock data for other features
   const stats: DashboardStats = {
@@ -120,35 +126,29 @@ export default function SRCDashboard() {
   const handleViewComplaint = (complaint: ComplaintWithRelations) => {
     setSelectedComplaint(complaint);
     setShowComplaintModal(true);
+    
+    // Fetch department members if the complaint is claimed by a department
+    if (complaint.assigned_department_info?.id) {
+      fetchDepartmentMembers(complaint.assigned_department_info.id);
+    } else {
+      setDepartmentMembers([]);
+    }
   };
 
-  const handleAssignComplaint = async (complaint: ComplaintWithRelations) => {
+  const fetchDepartmentMembers = async (departmentId: string) => {
     try {
-      const response = await fetch(`/api/complaints/${complaint.id}/assign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ assigned_to: session?.user?.id }),
-      });
-
+      const response = await fetch(`/api/departments/${departmentId}/members`);
       if (response.ok) {
         const data = await response.json();
-        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
-        if (selectedComplaint?.id === complaint.id) {
-          setSelectedComplaint(data.complaint);
-        }
-        alert('Complaint assigned successfully');
-      } else {
-        alert('Failed to assign complaint');
+        setDepartmentMembers(data.members || []);
       }
-    } catch {
-      alert('Failed to assign complaint');
+    } catch (error) {
+      console.error('Failed to fetch department members:', error);
+      setDepartmentMembers([]);
     }
   };
 
   const handleRespondToComplaint = async (complaint: ComplaintWithRelations) => {
-    // Open the complaint view modal for responding
     setSelectedComplaint(complaint);
     setShowComplaintModal(true);
   };
@@ -552,7 +552,6 @@ export default function SRCDashboard() {
                 complaints={complaints}
                 loading={loading}
                 onView={(complaint) => handleViewComplaint(complaint as ComplaintWithRelations)}
-                onAssign={(complaint) => handleAssignComplaint(complaint as ComplaintWithRelations)}
                 onRespond={(complaint) => handleRespondToComplaint(complaint as ComplaintWithRelations)}
                 onClaim={handleClaimComplaint}
                 onUpdateStatus={handleUpdateStatus}
@@ -853,7 +852,7 @@ export default function SRCDashboard() {
                   {/* Quick Action Buttons */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h5 className="text-sm font-medium text-gray-700 mb-3">Quick Actions</h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {/* Status Update */}
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Update Status</label>
@@ -881,6 +880,48 @@ export default function SRCDashboard() {
                           <option value="medium">Medium</option>
                           <option value="high">High</option>
                           <option value="urgent">Urgent</option>
+                        </select>
+                      </div>
+                      
+                      {/* Assignment */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Assign To</label>
+                        <select 
+                          defaultValue={selectedComplaint.assigned_to?.id || ''}
+                          onChange={(e) => {
+                            const assignedTo = e.target.value;
+                            if (assignedTo) {
+                              // Call the assignment API
+                              fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ assigned_to: assignedTo }),
+                              }).then(() => {
+                                // Refresh complaints after assignment
+                                fetchComplaints(currentPage);
+                              });
+                            } else {
+                              // Unassign
+                              fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
+                                method: 'DELETE',
+                              }).then(() => {
+                                // Refresh complaints after unassignment
+                                fetchComplaints(currentPage);
+                              });
+                            }
+                          }}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                        >
+                          <option value="">Unassigned</option>
+                          {departmentMembers.length > 0 && (
+                            <optgroup label={`${selectedComplaint.assigned_department_info?.name} Members`}>
+                              {departmentMembers.map((member) => (
+                                <option key={member.id} value={member.id}>
+                                  {member.full_name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
                         </select>
                       </div>
                       

@@ -10,7 +10,6 @@ interface ComplaintListProps {
   onView?: (complaint: ComplaintWithRelations) => void;
   onEdit?: (complaint: ComplaintWithRelations) => void;
   onDelete?: (complaint: ComplaintWithRelations) => void;
-  onAssign?: (complaint: ComplaintWithRelations) => void;
   onRespond?: (complaint: ComplaintWithRelations) => void;
   onClaim?: (complaint: ComplaintWithRelations, action: 'claim' | 'unclaim') => Promise<void>;
   onUpdateStatus?: (complaint: ComplaintWithRelations, status: ComplaintStatus) => Promise<void>;
@@ -56,7 +55,6 @@ export default function ComplaintList({
   onView,
   onEdit,
   onDelete,
-  onAssign,
   onRespond,
   onClaim,
   onUpdateStatus,
@@ -285,9 +283,6 @@ export default function ComplaintList({
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Assigned To
-              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -386,16 +381,7 @@ export default function ComplaintList({
                       {STATUS_CONFIG[complaint.status].icon} {STATUS_CONFIG[complaint.status].label}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {complaint.assigned_to ? (
-                      <div>
-                        <div className="font-medium">{complaint.assigned_to.full_name}</div>
-                        <div className="text-gray-500 text-xs capitalize">{complaint.assigned_to.role}</div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">Unassigned</span>
-                    )}
-                  </td>
+
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
                       {onView && (
@@ -414,14 +400,7 @@ export default function ComplaintList({
                           Edit
                         </Button>
                       )}
-                      {onAssign && (userRole === 'src' || userRole === 'admin') && !complaint.assigned_to && (
-                        <Button
-                          onClick={() => onAssign(complaint)}
-                          className="text-xs bg-[#359d49] text-white hover:bg-[#2a6b39]"
-                        >
-                          Assign
-                        </Button>
-                      )}
+
                       {/* Claim/Unclaim Button for SRC members */}
                       {userRole === 'src' && !complaint.assigned_to && (
                         <Button
