@@ -70,7 +70,14 @@ export default function SRCDashboard() {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [departmentMembers, setDepartmentMembers] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [departmentMembers, setDepartmentMembers] = useState<Array<{
+    id: string;
+    full_name: string;
+    email: string;
+    role: string;
+    department_id?: string;
+    department_name?: string;
+  }>>([]);
 
   // Mock data for other features
   const stats: DashboardStats = {
@@ -120,29 +127,58 @@ export default function SRCDashboard() {
   };
 
   // Handle complaint actions
-  const handleViewComplaint = (complaint: ComplaintWithRelations) => {
-    setSelectedComplaint(complaint);
-    setShowComplaintModal(true);
-    
-    // Fetch department members from the target departments of the complaint
-    if (complaint.departments_selected && complaint.departments_selected.length > 0) {
-      // Fetch members from the first target department
-      fetchDepartmentMembers(complaint.departments_selected[0]);
-    } else {
-      // If no target departments, clear the members list
+  const fetchDepartmentMembers = async (departmentIds: string[]) => {
+    try {
+      console.log('Fetching members for departments:', departmentIds);
+      
+      // Fetch members from all target departments
+      const allMembers: any[] = [];
+      
+      for (const deptId of departmentIds) {
+        const response = await fetch(`/api/departments/${deptId}/members`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`Members from department ${deptId}:`, data.members);
+          if (data.members && data.members.length > 0) {
+            // Add department info to each member to avoid duplicates
+            const membersWithDept = data.members.map((member: any) => ({
+              ...member,
+              department_id: deptId,
+              department_name: data.department_name
+            }));
+            allMembers.push(...membersWithDept);
+          }
+        } else {
+          console.error(`Failed to fetch members for department ${deptId}:`, response.status);
+        }
+      }
+      
+      // Remove duplicate members (in case someone is in multiple departments)
+      const uniqueMembers = allMembers.filter((member, index, self) => 
+        index === self.findIndex(m => m.id === member.id)
+      );
+      
+      console.log('Total unique members found:', uniqueMembers.length);
+      setDepartmentMembers(uniqueMembers);
+      
+    } catch (error) {
+      console.error('Failed to fetch department members:', error);
       setDepartmentMembers([]);
     }
   };
 
-  const fetchDepartmentMembers = async (departmentId: string) => {
-    try {
-      const response = await fetch(`/api/departments/${departmentId}/members`);
-      if (response.ok) {
-        const data = await response.json();
-        setDepartmentMembers(data.members || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch department members:', error);
+  const handleViewComplaint = (complaint: ComplaintWithRelations) => {
+    setSelectedComplaint(complaint);
+    setShowComplaintModal(true);
+    
+    // Fetch department members from ALL target departments of the complaint
+    if (complaint.departments_selected && complaint.departments_selected.length > 0) {
+      console.log('Complaint target departments:', complaint.departments_selected);
+      // Fetch members from ALL target departments
+      fetchDepartmentMembers(complaint.departments_selected);
+    } else {
+      console.log('No target departments found for complaint');
+      // If no target departments, clear the members list
       setDepartmentMembers([]);
     }
   };
@@ -847,53 +883,75 @@ export default function SRCDashboard() {
                       
                       {/* Assignment */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Assign To</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Assign To {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 && (
+                            <span className="text-gray-400">
+                              ({selectedComplaint.departments_selected.length > 1 ? 'from all target departments' : 'from target department'})
+                            </span>
+                          )}
+                        </label>
                         <select 
                           value={selectedComplaint.assigned_to?.id || ''}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const assignedTo = e.target.value;
-                            if (assignedTo) {
-                              // Call the assignment API
-                              fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ assigned_to: assignedTo }),
-                              }).then(() => {
-                                // Refresh complaints after assignment
-                                fetchComplaints(currentPage);
-                                // Also refresh the modal data
-                                if (selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0) {
-                                  fetchDepartmentMembers(selectedComplaint.departments_selected[0]);
+                            try {
+                              if (assignedTo) {
+                                // Call the assignment API
+                                const response = await fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ assigned_to: assignedTo }),
+                                });
+                                
+                                if (response.ok) {
+                                  const data = await response.json();
+                                  // Immediately update the selected complaint in the modal
+                                  setSelectedComplaint(prev => ({
+                                    ...prev!,
+                                    assigned_to: data.complaint.assigned_to
+                                  }));
+                                  // Also update the complaints list
+                                  setComplaints(prev => prev.map(c => 
+                                    c.id === selectedComplaint.id ? data.complaint : c
+                                  ));
+                                  alert('Complaint assigned successfully!');
+                                } else {
+                                  alert('Failed to assign complaint. Please try again.');
                                 }
-                              }).catch(error => {
-                                console.error('Assignment failed:', error);
-                                alert('Failed to assign complaint. Please try again.');
-                              });
-                            } else {
-                              // Unassign
-                              fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
-                                method: 'DELETE',
-                              }).then(() => {
-                                // Refresh complaints after unassignment
-                                fetchComplaints(currentPage);
-                                // Also refresh the modal data
-                                if (selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0) {
-                                  fetchDepartmentMembers(selectedComplaint.departments_selected[0]);
+                              } else {
+                                // Unassign
+                                const response = await fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
+                                  method: 'DELETE',
+                                });
+                                
+                                if (response.ok) {
+                                  // Immediately update the selected complaint in the modal
+                                  setSelectedComplaint(prev => ({
+                                    ...prev!,
+                                    assigned_to: undefined
+                                  }));
+                                  // Also update the complaints list
+                                  setComplaints(prev => prev.map(c => 
+                                    c.id === selectedComplaint.id ? { ...c, assigned_to: undefined } : c
+                                  ));
+                                  alert('Complaint unassigned successfully!');
+                                } else {
+                                  alert('Failed to unassign complaint. Please try again.');
                                 }
-                              }).catch(error => {
-                                console.error('Unassignment failed:', error);
-                                alert('Failed to unassign complaint. Please try again.');
-                              });
+                              }
+                            } catch (error) {
+                              console.error('Assignment failed:', error);
+                              alert('Failed to assign complaint. Please try again.');
                             }
                           }}
                           className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
                         >
                           <option value="">Unassigned</option>
                           {departmentMembers.length > 0 ? (
-                            <optgroup label="Department Members">
+                            <optgroup label={`All Department Members (${departmentMembers.length} available)`}>
                               {departmentMembers.map((member) => (
                                 <option key={member.id} value={member.id}>
-                                  {member.full_name}
+                                  {member.full_name} {member.department_name && `(${member.department_name})`}
                                 </option>
                               ))}
                             </optgroup>
@@ -908,7 +966,19 @@ export default function SRCDashboard() {
                         )}
                         {departmentMembers.length === 0 && (
                           <p className="text-xs text-gray-400 mt-1">
-                            Loading department members...
+                            {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 
+                              ? 'Loading department members...' 
+                              : 'No target departments found for this complaint'
+                            }
+                          </p>
+                        )}
+                        {/* Debug info */}
+                        {process.env.NODE_ENV === 'development' && (
+                          <p className="text-xs text-gray-300 mt-1">
+                            Debug: Target depts: {selectedComplaint.departments_selected?.length || 0} departments | 
+                            Members loaded: {departmentMembers.length} | 
+                            Depts: {selectedComplaint.departments_selected?.slice(0, 3).join(', ') || 'none'}
+                            {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 3 && '...'}
                           </p>
                         )}
                       </div>
