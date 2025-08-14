@@ -494,13 +494,13 @@ export default function StudentDashboard() {
                 </div>
                 <ComplaintList
                   complaints={complaints}
-                  loading={loading}
                   onView={handleViewComplaint}
-                  onEdit={handleEditComplaint}
-                  onDelete={handleDeleteComplaint}
                   currentPage={currentPage}
                   totalCount={totalCount}
-                  onPageChange={handlePageChange}
+                  onPageChange={setCurrentPage}
+                  sortBy="created_at"
+                  sortOrder="desc"
+                  onSort={() => {}}
                 />
               </div>
             </Suspense>

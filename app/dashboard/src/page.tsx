@@ -9,7 +9,7 @@ import ComplaintList from '@/app/components/complaints/complaint-list';
 
 
 
-import { Complaint, ComplaintStatus, SrcDepartment } from '@/types/supabase';
+import { Complaint, ComplaintStatus, ComplaintPriority, SrcDepartment } from '@/types/supabase';
 import { useSession } from '@/app/contexts/session-context';
 
 // Type for complaint with related data
@@ -67,7 +67,6 @@ export default function SRCDashboard() {
   const [showProposalModal, setShowProposalModal] = useState(false);
 
   const [complaints, setComplaints] = useState<ComplaintWithRelations[]>([]);
-  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [departmentMembers, setDepartmentMembers] = useState<Array<{
@@ -78,6 +77,19 @@ export default function SRCDashboard() {
     department_id?: string;
     department_name?: string;
   }>>([]);
+
+  // Add state for pending changes in the complaint modal
+  const [pendingChanges, setPendingChanges] = useState<{
+    assigned_to?: string;
+    status?: ComplaintStatus;
+    priority?: ComplaintPriority;
+    response?: string;
+  }>({});
+
+  // Check if there are any pending changes
+  const hasPendingChanges = () => {
+    return Object.values(pendingChanges).some(value => value !== undefined);
+  };
 
   // Mock data for other features
   const stats: DashboardStats = {
@@ -108,7 +120,6 @@ export default function SRCDashboard() {
 
   // Fetch complaints from API
   const fetchComplaints = async (page: number = 1) => {
-    setLoading(true);
     try {
       const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
       if (response.ok) {
@@ -121,8 +132,6 @@ export default function SRCDashboard() {
       }
     } catch {
       alert('Failed to load complaints');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -132,7 +141,14 @@ export default function SRCDashboard() {
       console.log('Fetching members for departments:', departmentIds);
       
       // Fetch members from all target departments
-      const allMembers: any[] = [];
+      const allMembers: Array<{
+        id: string;
+        full_name: string;
+        email: string;
+        role: string;
+        department_id?: string;
+        department_name?: string;
+      }> = [];
       
       for (const deptId of departmentIds) {
         const response = await fetch(`/api/departments/${deptId}/members`);
@@ -141,7 +157,12 @@ export default function SRCDashboard() {
           console.log(`Members from department ${deptId}:`, data.members);
           if (data.members && data.members.length > 0) {
             // Add department info to each member to avoid duplicates
-            const membersWithDept = data.members.map((member: any) => ({
+            const membersWithDept = data.members.map((member: {
+              id: string;
+              full_name: string;
+              email: string;
+              role: string;
+            }) => ({
               ...member,
               department_id: deptId,
               department_name: data.department_name
@@ -171,6 +192,9 @@ export default function SRCDashboard() {
     setSelectedComplaint(complaint);
     setShowComplaintModal(true);
     
+    // Reset pending changes when opening a new complaint
+    setPendingChanges({});
+    
     // Fetch department members from ALL target departments of the complaint
     if (complaint.departments_selected && complaint.departments_selected.length > 0) {
       console.log('Complaint target departments:', complaint.departments_selected);
@@ -180,61 +204,6 @@ export default function SRCDashboard() {
       console.log('No target departments found for complaint');
       // If no target departments, clear the members list
       setDepartmentMembers([]);
-    }
-  };
-
-  const handleRespondToComplaint = async (complaint: ComplaintWithRelations) => {
-    setSelectedComplaint(complaint);
-    setShowComplaintModal(true);
-  };
-
-  const handleUpdateStatus = async (complaint: ComplaintWithRelations, status: ComplaintStatus) => {
-    try {
-      const response = await fetch(`/api/complaints/${complaint.id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
-        if (selectedComplaint?.id === complaint.id) {
-          setSelectedComplaint(data.complaint);
-        }
-        alert('Status updated successfully');
-      } else {
-        alert('Failed to update complaint status');
-      }
-    } catch {
-      alert('Failed to update complaint status');
-    }
-  };
-
-  const handleUpdatePriority = async (complaint: ComplaintWithRelations, priority: string) => {
-    try {
-      const response = await fetch(`/api/complaints/${complaint.id}/priority`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ priority }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
-        if (selectedComplaint?.id === complaint.id) {
-          setSelectedComplaint(data.complaint);
-        }
-        alert('Priority updated successfully');
-      } else {
-        alert('Failed to update complaint priority');
-      }
-    } catch {
-      alert('Failed to update complaint priority');
     }
   };
 
@@ -266,38 +235,89 @@ export default function SRCDashboard() {
   const handleUpdateComplaint = async () => {
     if (!selectedComplaint) return;
     
-    // Get form data from the modal
-    const form = document.querySelector('#complaint-modal form');
-    if (!form) return;
+    console.log('Updating complaint with pending changes:', pendingChanges);
     
-    const formData = new FormData(form as HTMLFormElement);
-    const updateData = {
-      status: formData.get('status') as string,
-      priority: formData.get('priority') as string,
-      response: formData.get('response') as string,
-    };
-
     try {
-      const response = await fetch(`/api/complaints/${selectedComplaint.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setComplaints(prev => prev.map(c => c.id === selectedComplaint.id ? data.complaint : c));
-        setSelectedComplaint(data.complaint);
-        setShowComplaintModal(false);
-        alert('Complaint updated successfully');
-      } else {
-        const errorData = await response.json();
-        alert(`Failed to update complaint: ${errorData.error}`);
+      let hasChanges = false;
+      
+      // Apply all pending changes
+      if (pendingChanges.assigned_to !== undefined) {
+        hasChanges = true;
+        if (pendingChanges.assigned_to) {
+          // Assign complaint
+          const response = await fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assigned_to: pendingChanges.assigned_to }),
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to assign complaint');
+          }
+        } else {
+          // Unassign complaint
+          const response = await fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to unassign complaint');
+          }
+        }
       }
-    } catch {
-      alert('Failed to update complaint');
+      
+      if (pendingChanges.status !== undefined) {
+        hasChanges = true;
+        const response = await fetch(`/api/complaints/${selectedComplaint.id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: pendingChanges.status }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update status');
+        }
+      }
+      
+      if (pendingChanges.priority !== undefined) {
+        hasChanges = true;
+        const response = await fetch(`/api/complaints/${selectedComplaint.id}/priority`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ priority: pendingChanges.priority }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update priority');
+        }
+      }
+      
+      if (pendingChanges.response !== undefined) {
+        hasChanges = true;
+        const response = await fetch(`/api/complaints/${selectedComplaint.id}/response`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ response: pendingChanges.response }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update response');
+        }
+      }
+      
+      if (hasChanges) {
+        // Refresh the complaint data
+        await fetchComplaints();
+        alert('Complaint updated successfully!');
+        setShowComplaintModal(false);
+        setPendingChanges({});
+      } else {
+        alert('No changes to save');
+      }
+      
+    } catch (error) {
+      console.error('Update failed:', error);
+      alert(`Failed to update complaint: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -549,20 +569,13 @@ export default function SRCDashboard() {
 
               <ComplaintList
                 complaints={complaints}
-                loading={loading}
                 onView={(complaint) => handleViewComplaint(complaint as ComplaintWithRelations)}
-                onRespond={(complaint) => handleRespondToComplaint(complaint as ComplaintWithRelations)}
-                onUpdateStatus={handleUpdateStatus}
-                onUpdatePriority={handleUpdatePriority}
-                onAddResponse={handleAddResponse}
-                userRole="src"
-                currentUserId={session?.user?.id}
-                showFilters={true}
-                showPagination={true}
-                totalCount={totalCount}
                 currentPage={currentPage}
-                pageSize={10}
-                onPageChange={handlePageChange}
+                totalCount={totalCount}
+                onPageChange={setCurrentPage}
+                sortBy="created_at"
+                sortOrder="desc"
+                onSort={() => {}}
               />
             </div>
           )}
@@ -839,6 +852,13 @@ export default function SRCDashboard() {
                       </svg>
                     </button>
                   </div>
+                  {hasPendingChanges() && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-sm text-blue-700">
+                        ⚠️ You have pending changes. Click &quot;Update Complaint&quot; to save them.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <form className="p-6 space-y-4">
                   <div>
@@ -847,214 +867,137 @@ export default function SRCDashboard() {
                     <p className="text-sm text-gray-600 mt-2">{selectedComplaint.description}</p>
                   </div>
                   
-                  {/* Quick Action Buttons */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h5 className="text-sm font-medium text-gray-700 mb-3">Quick Actions</h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {/* Status Update */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Update Status</label>
-                        <select 
-                          defaultValue={selectedComplaint.status}
-                          onChange={(e) => handleUpdateStatus(selectedComplaint, e.target.value as ComplaintStatus)}
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="closed">Closed</option>
-                        </select>
-                      </div>
-                      
-                      {/* Priority Update */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Update Priority</label>
-                        <select 
-                          defaultValue={selectedComplaint.priority}
-                          onChange={(e) => handleUpdatePriority(selectedComplaint, e.target.value)}
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
-                        >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
-                      </div>
-                      
-                      {/* Assignment */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Assign To {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 && (
-                            <span className="text-gray-400">
-                              ({selectedComplaint.departments_selected.length > 1 ? 'from all target departments' : 'from target department'})
-                            </span>
-                          )}
-                        </label>
-                        <select 
-                          value={selectedComplaint.assigned_to?.id || ''}
-                          onChange={async (e) => {
-                            const assignedTo = e.target.value;
-                            try {
-                              if (assignedTo) {
-                                // Call the assignment API
-                                const response = await fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ assigned_to: assignedTo }),
-                                });
-                                
-                                if (response.ok) {
-                                  const data = await response.json();
-                                  // Immediately update the selected complaint in the modal
-                                  setSelectedComplaint(prev => ({
-                                    ...prev!,
-                                    assigned_to: data.complaint.assigned_to
-                                  }));
-                                  // Also update the complaints list
-                                  setComplaints(prev => prev.map(c => 
-                                    c.id === selectedComplaint.id ? data.complaint : c
-                                  ));
-                                  alert('Complaint assigned successfully!');
-                                } else {
-                                  alert('Failed to assign complaint. Please try again.');
-                                }
-                              } else {
-                                // Unassign
-                                const response = await fetch(`/api/complaints/${selectedComplaint.id}/assign`, {
-                                  method: 'DELETE',
-                                });
-                                
-                                if (response.ok) {
-                                  // Immediately update the selected complaint in the modal
-                                  setSelectedComplaint(prev => ({
-                                    ...prev!,
-                                    assigned_to: undefined
-                                  }));
-                                  // Also update the complaints list
-                                  setComplaints(prev => prev.map(c => 
-                                    c.id === selectedComplaint.id ? { ...c, assigned_to: undefined } : c
-                                  ));
-                                  alert('Complaint unassigned successfully!');
-                                } else {
-                                  alert('Failed to unassign complaint. Please try again.');
-                                }
-                              }
-                            } catch (error) {
-                              console.error('Assignment failed:', error);
-                              alert('Failed to assign complaint. Please try again.');
-                            }
-                          }}
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
-                        >
-                          <option value="">Unassigned</option>
-                          {departmentMembers.length > 0 ? (
-                            <optgroup label={`All Department Members (${departmentMembers.length} available)`}>
-                              {departmentMembers.map((member) => (
-                                <option key={member.id} value={member.id}>
-                                  {member.full_name} {member.department_name && `(${member.department_name})`}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ) : (
-                            <option value="" disabled>No department members available</option>
-                          )}
-                        </select>
-                        {selectedComplaint.assigned_to && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Currently assigned to: {selectedComplaint.assigned_to.full_name}
-                          </p>
+                  {/* Quick Actions */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {/* Assignment */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Assign To {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 && (
+                          <span className="text-gray-500 text-xs">
+                            ({selectedComplaint.departments_selected.length > 1 ? 'from all target departments' : 'from target department'})
+                          </span>
                         )}
-                        {departmentMembers.length === 0 && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 
-                              ? 'Loading department members...' 
-                              : 'No target departments found for this complaint'
-                            }
-                          </p>
+                      </label>
+                      <select 
+                        value={pendingChanges.assigned_to !== undefined ? pendingChanges.assigned_to : (selectedComplaint.assigned_to?.id || '')}
+                        onChange={(e) => setPendingChanges(prev => ({ ...prev, assigned_to: e.target.value || undefined }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+                      >
+                        <option value="">Unassigned</option>
+                        {departmentMembers.length > 0 ? (
+                          <optgroup label={`All Department Members (${departmentMembers.length} available)`}>
+                            {departmentMembers.map((member) => (
+                              <option key={member.id} value={member.id}>
+                                {member.full_name} {member.department_name && `(${member.department_name})`}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ) : (
+                          <option value="" disabled>No department members available</option>
                         )}
-                        {/* Debug info */}
-                        {process.env.NODE_ENV === 'development' && (
-                          <p className="text-xs text-gray-300 mt-1">
-                            Debug: Target depts: {selectedComplaint.departments_selected?.length || 0} departments | 
-                            Members loaded: {departmentMembers.length} | 
-                            Depts: {selectedComplaint.departments_selected?.slice(0, 3).join(', ') || 'none'}
-                            {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 3 && '...'}
-                          </p>
-                        )}
-                      </div>
-                      
-                      {/* Quick Response */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Quick Response</label>
-                        <select 
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              handleAddResponse(selectedComplaint, e.target.value);
-                              e.target.value = ''; // Reset selection
-                            }
-                          }}
-                          className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
-                        >
-                          <option value="">Select response...</option>
-                          <option value="We have received your complaint and are investigating the issue.">Received & Investigating</option>
-                          <option value="We are currently working on resolving your complaint.">Working on it</option>
-                          <option value="Your complaint has been resolved. Please let us know if you need anything else.">Resolved</option>
-                          <option value="We need more information to proceed. Please contact us.">Need More Info</option>
-                        </select>
-                      </div>
+                      </select>
+                      {pendingChanges.assigned_to !== undefined ? (
+                        <p className="text-sm text-blue-600 mt-2">
+                          ⚠️ Pending: Will be assigned to {departmentMembers.find(m => m.id === pendingChanges.assigned_to)?.full_name || 'selected member'}
+                        </p>
+                      ) : selectedComplaint.assigned_to ? (
+                        <p className="text-sm text-gray-600 mt-2">
+                          Currently assigned to: <span className="font-medium">{selectedComplaint.assigned_to.full_name}</span>
+                        </p>
+                      ) : null}
+                      {departmentMembers.length === 0 && (
+                        <p className="text-sm text-gray-500 mt-2">
+                          {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 
+                            ? 'Loading department members...' 
+                            : 'No target departments found for this complaint'
+                          }
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Status Update */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                      <select 
+                        value={pendingChanges.status !== undefined ? pendingChanges.status : selectedComplaint.status}
+                        onChange={(e) => setPendingChanges(prev => ({ ...prev, status: e.target.value as ComplaintStatus }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+                      >
+                        <option value="pending">⏳ Pending</option>
+                        <option value="in_progress">🔄 In Progress</option>
+                        <option value="resolved">✅ Resolved</option>
+                        <option value="closed">🔒 Closed</option>
+                        <option value="rejected">❌ Rejected</option>
+                      </select>
+                      {pendingChanges.status !== undefined && pendingChanges.status !== selectedComplaint.status && (
+                        <p className="text-sm text-blue-600 mt-2">
+                          ⚠️ Pending: Will change from {selectedComplaint.status} to {pendingChanges.status}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Priority Update */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                      <select 
+                        value={pendingChanges.priority !== undefined ? pendingChanges.priority : selectedComplaint.priority}
+                        onChange={(e) => setPendingChanges(prev => ({ ...prev, priority: e.target.value as ComplaintPriority }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+                      >
+                        <option value="low">🟢 Low</option>
+                        <option value="medium">🟡 Medium</option>
+                        <option value="high">🟠 High</option>
+                        <option value="urgent">🔴 Urgent</option>
+                      </select>
+                      {pendingChanges.priority !== undefined && pendingChanges.priority !== selectedComplaint.priority && (
+                        <p className="text-sm text-blue-600 mt-2">
+                          ⚠️ Pending: Will change from {selectedComplaint.priority} to {pendingChanges.priority}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <select 
-                        name="status"
-                        defaultValue={selectedComplaint.status}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="closed">Closed</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                      <select 
-                        name="priority"
-                        defaultValue={selectedComplaint.priority}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Response</label>
+
+                  {/* Response Section */}
+                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Response</label>
                     <textarea
                       name="response"
                       rows={4}
-                      defaultValue={selectedComplaint.response || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+                      value={pendingChanges.response !== undefined ? pendingChanges.response : (selectedComplaint.response || '')}
+                      onChange={(e) => setPendingChanges(prev => ({ ...prev, response: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
                       placeholder="Enter your response to the student..."
                     />
+                    {pendingChanges.response !== undefined && pendingChanges.response !== selectedComplaint.response && (
+                      <p className="text-sm text-blue-600 mt-2">
+                        ⚠️ Pending: Response will be updated
+                      </p>
+                    )}
                   </div>
-                  <div className="flex justify-end space-x-2 pt-4">
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                     <Button
                       type="button"
                       onClick={() => setShowComplaintModal(false)}
-                      className="bg-gray-300 hover:bg-gray-400 text-gray-700"
+                      className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2"
                     >
-                      Cancel
+                      Close
                     </Button>
+                    {hasPendingChanges() && (
+                      <Button
+                        type="button"
+                        onClick={() => setPendingChanges({})}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2"
+                      >
+                        Reset Changes
+                      </Button>
+                    )}
                     <Button 
                       type="button"
                       onClick={handleUpdateComplaint}
-                      className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                      className="bg-[#359d49] hover:bg-[#2a6b39] text-white px-6 py-2"
+                      disabled={!hasPendingChanges()}
                     >
                       Update Complaint
                     </Button>

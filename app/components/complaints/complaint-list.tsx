@@ -6,22 +6,13 @@ import { ComplaintCategory, ComplaintPriority, ComplaintStatus, ComplaintWithRel
 
 interface ComplaintListProps {
   complaints: ComplaintWithRelations[];
-  loading?: boolean;
-  onView?: (complaint: ComplaintWithRelations) => void;
-  onEdit?: (complaint: ComplaintWithRelations) => void;
-  onDelete?: (complaint: ComplaintWithRelations) => void;
-  onRespond?: (complaint: ComplaintWithRelations) => void;
-  onUpdateStatus?: (complaint: ComplaintWithRelations, status: ComplaintStatus) => Promise<void>;
-  onUpdatePriority?: (complaint: ComplaintWithRelations, priority: ComplaintPriority) => Promise<void>;
-  onAddResponse?: (complaint: ComplaintWithRelations, response: string) => Promise<void>;
-  userRole?: 'student' | 'src' | 'admin';
-  currentUserId?: string;
-  showFilters?: boolean;
-  showPagination?: boolean;
-  totalCount?: number;
-  currentPage?: number;
-  pageSize?: number;
-  onPageChange?: (page: number) => void;
+  onView: (complaint: ComplaintWithRelations) => void;
+  currentPage: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+  onSort: (field: string) => void;
 }
 
 const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
@@ -50,32 +41,29 @@ const STATUS_CONFIG: Record<ComplaintStatus, { label: string; icon: string; bgCo
 
 export default function ComplaintList({
   complaints,
-  loading = false,
   onView,
-  onEdit,
-  onDelete,
-  onRespond,
-  onUpdateStatus,
-  onUpdatePriority,
-  onAddResponse,
-  userRole,
-  currentUserId,
-  showFilters = true,
-  showPagination = true,
-  totalCount = 0,
-  currentPage = 1,
-  pageSize = 10,
+  currentPage,
+  totalCount,
   onPageChange,
+  sortBy,
+  sortOrder,
+  onSort
 }: ComplaintListProps) {
   const [filters, setFilters] = useState({
     status: '',
-    category: '',
     priority: '',
-    search: '',
+    department: '',
+    category: '',
+    dateFrom: '',
+    dateTo: ''
   });
 
-  const [sortBy, setSortBy] = useState<'created_at' | 'priority' | 'status'>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [localSortBy, setLocalSortBy] = useState(sortBy);
+  const [localSortOrder, setLocalSortOrder] = useState(sortOrder);
+  const pageSize = 10;
+  const loading = false;
+  const showFilters = true;
+  const showPagination = true;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -87,26 +75,32 @@ export default function ComplaintList({
   };
 
   const handleSort = (field: 'created_at' | 'priority' | 'status') => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    if (localSortBy === field) {
+      setLocalSortOrder(localSortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortBy(field);
-      setSortOrder('desc');
+      setLocalSortBy(field);
+      setLocalSortOrder('desc');
     }
   };
 
   const filteredComplaints = complaints.filter(complaint => {
     if (filters.status && complaint.status !== filters.status) return false;
-    if (filters.category && complaint.category !== filters.category) return false;
     if (filters.priority && complaint.priority !== filters.priority) return false;
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      return (
-        complaint.title.toLowerCase().includes(searchLower) ||
-        complaint.description.toLowerCase().includes(searchLower) ||
-        complaint.student?.full_name.toLowerCase().includes(searchLower) ||
-        complaint.student?.student_id?.toLowerCase().includes(searchLower)
-      );
+    if (filters.category && complaint.category !== filters.category) return false;
+    if (filters.department && complaint.target_department_names && complaint.target_department_names.length > 0) {
+      if (!complaint.target_department_names.some(dept => dept.toLowerCase().includes(filters.department.toLowerCase()))) return false;
+    }
+    if (filters.dateFrom) {
+      const complaintDate = new Date(complaint.created_at);
+      const fromDate = new Date(filters.dateFrom);
+      if (complaintDate < fromDate) return false;
+    }
+    if (filters.dateTo) {
+      const complaintDate = new Date(complaint.created_at);
+      const toDate = new Date(filters.dateTo);
+      // Set to end of day for inclusive comparison
+      toDate.setHours(23, 59, 59, 999);
+      if (complaintDate > toDate) return false;
     }
     return true;
   });
@@ -114,26 +108,27 @@ export default function ComplaintList({
   const sortedComplaints = [...filteredComplaints].sort((a, b) => {
     let aValue: number, bValue: number;
 
-    switch (sortBy) {
+    switch (localSortBy) {
       case 'created_at':
         aValue = new Date(a.created_at).getTime();
         bValue = new Date(b.created_at).getTime();
         break;
       case 'priority':
-        const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
-        aValue = priorityOrder[a.priority as keyof typeof priorityOrder];
-        bValue = priorityOrder[b.priority as keyof typeof priorityOrder];
+        const priorityOrder = { low: 1, medium: 2, high: 3, urgent: 4 };
+        aValue = priorityOrder[a.priority] || 0;
+        bValue = priorityOrder[b.priority] || 0;
         break;
       case 'status':
         const statusOrder = { pending: 1, in_progress: 2, resolved: 3, closed: 4, rejected: 5 };
-        aValue = statusOrder[a.status as keyof typeof statusOrder];
-        bValue = statusOrder[b.status as keyof typeof statusOrder];
+        aValue = statusOrder[a.status] || 0;
+        bValue = statusOrder[b.status] || 0;
         break;
       default:
-        return 0;
+        aValue = 0;
+        bValue = 0;
     }
 
-    if (sortOrder === 'asc') {
+    if (localSortOrder === 'asc') {
       return aValue - bValue;
     } else {
       return bValue - aValue;
@@ -157,27 +152,24 @@ export default function ComplaintList({
     );
   }
 
+  const handleFilterChange = (filterType: 'status' | 'priority' | 'department' | 'category' | 'dateFrom' | 'dateTo', value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       {/* Filters */}
       {showFilters && (
         <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Search</label>
-              <input
-                type="text"
-                placeholder="Search complaints..."
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
               <select
                 value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
                 className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
               >
                 <option value="">All Status</option>
@@ -189,10 +181,35 @@ export default function ComplaintList({
               </select>
             </div>
             <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+              <select
+                value={filters.priority}
+                onChange={(e) => handleFilterChange('priority', e.target.value)}
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+              >
+                <option value="">All Priorities</option>
+                {Object.entries(PRIORITY_CONFIG).map(([value, config]) => (
+                  <option key={value} value={value}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+              <input
+                type="text"
+                placeholder="Filter by department..."
+                value={filters.department}
+                onChange={(e) => handleFilterChange('department', e.target.value)}
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
               <select
                 value={filters.category}
-                onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
                 className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
               >
                 <option value="">All Categories</option>
@@ -204,28 +221,93 @@ export default function ComplaintList({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
-              <select
-                value={filters.priority}
-                onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+              <label className="block text-xs font-medium text-gray-700 mb-1">Date From</label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
                 className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
-              >
-                <option value="">All Priorities</option>
-                {Object.entries(PRIORITY_CONFIG).map(([value, config]) => (
-                  <option key={value} value={value}>
-                    {config.label}
-                  </option>
-                ))}
-              </select>
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Date To</label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+              />
             </div>
             <div className="flex items-end">
               <Button
-                onClick={() => setFilters({ status: '', category: '', priority: '', search: '' })}
+                onClick={() => setFilters({ status: '', priority: '', department: '', category: '', dateFrom: '', dateTo: '' })}
                 className="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm"
               >
                 Clear Filters
               </Button>
             </div>
+          </div>
+          
+          {/* Quick Date Filters */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="text-xs font-medium text-gray-700 mr-2">Quick Filters:</span>
+            <Button
+              onClick={() => {
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                setFilters(prev => ({
+                  ...prev,
+                  dateFrom: yesterday.toISOString().split('T')[0],
+                  dateTo: today.toISOString().split('T')[0]
+                }));
+              }}
+              className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1"
+            >
+              Last 24 Hours
+            </Button>
+            <Button
+              onClick={() => {
+                const today = new Date();
+                const weekAgo = new Date(today);
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                setFilters(prev => ({
+                  ...prev,
+                  dateFrom: weekAgo.toISOString().split('T')[0],
+                  dateTo: today.toISOString().split('T')[0]
+                }));
+              }}
+              className="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1"
+            >
+              Last 7 Days
+            </Button>
+            <Button
+              onClick={() => {
+                const today = new Date();
+                const monthAgo = new Date(today);
+                monthAgo.setMonth(monthAgo.getMonth() - 1);
+                setFilters(prev => ({
+                  ...prev,
+                  dateFrom: monthAgo.toISOString().split('T')[0],
+                  dateTo: today.toISOString().split('T')[0]
+                }));
+              }}
+              className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1"
+            >
+              Last 30 Days
+            </Button>
+            <Button
+              onClick={() => {
+                setFilters(prev => ({
+                  ...prev,
+                  dateFrom: '',
+                  dateTo: ''
+                }));
+              }}
+              className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1"
+            >
+              Clear Dates
+            </Button>
           </div>
         </div>
       )}
@@ -238,8 +320,8 @@ export default function ComplaintList({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_at')}>
                 <div className="flex items-center">
                   Date
-                  {sortBy === 'created_at' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  {localSortBy === 'created_at' && (
+                    <span className="ml-1">{localSortOrder === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </div>
               </th>
@@ -258,20 +340,20 @@ export default function ComplaintList({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('priority')}>
                 <div className="flex items-center">
                   Priority
-                  {sortBy === 'priority' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  {localSortBy === 'priority' && (
+                    <span className="ml-1">{localSortOrder === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
                 <div className="flex items-center">
                   Status
-                  {sortBy === 'status' && (
-                    <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  {localSortBy === 'status' && (
+                    <span className="ml-1">{localSortOrder === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -279,7 +361,7 @@ export default function ComplaintList({
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedComplaints.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                   No complaints found
                 </td>
               </tr>
@@ -317,11 +399,11 @@ export default function ComplaintList({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {complaint.target_department_names && complaint.target_department_names.length > 0 ? (
-                      <div className="space-y-1">
-                        {complaint.target_department_names.map((deptName, index) => (
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {complaint.target_department_names.slice(0, 3).map((deptName, index) => (
                           <span
                             key={index}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
                             style={{
                               backgroundColor: `${complaint.target_department_colors?.[index] || '#359d49'}20`,
                               color: complaint.target_department_colors?.[index] || '#359d49',
@@ -331,103 +413,43 @@ export default function ComplaintList({
                             {deptName}
                           </span>
                         ))}
+                        {complaint.target_department_names.length > 3 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                            +{complaint.target_department_names.length - 3} more
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span className="text-gray-400 text-xs">All Departments</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[complaint.status].bgColor} ${STATUS_CONFIG[complaint.status].color}`}>
-                      {STATUS_CONFIG[complaint.status].icon} {STATUS_CONFIG[complaint.status].label}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      STATUS_CONFIG[complaint.status]?.bgColor || 'bg-gray-100'
+                    } ${
+                      STATUS_CONFIG[complaint.status]?.color || 'text-gray-800'
+                    }`}>
+                      {STATUS_CONFIG[complaint.status]?.icon || '❓'} {STATUS_CONFIG[complaint.status]?.label || complaint.status || 'Unknown'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_CONFIG[complaint.priority].bgColor} ${PRIORITY_CONFIG[complaint.priority].color}`}>
-                      {PRIORITY_CONFIG[complaint.priority].label}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      PRIORITY_CONFIG[complaint.priority]?.bgColor || 'bg-gray-100'
+                    } ${
+                      PRIORITY_CONFIG[complaint.priority]?.color || 'text-gray-800'
+                    }`}>
+                      {PRIORITY_CONFIG[complaint.priority]?.label || complaint.priority || 'Unknown'}
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <div className="flex justify-center">
                       {onView && (
                         <Button
                           onClick={() => onView(complaint)}
                           className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200"
                         >
                           View
-                        </Button>
-                      )}
-                      {onEdit && (userRole === 'admin' || (userRole === 'student' && complaint.student_id === currentUserId)) && (
-                        <Button
-                          onClick={() => onEdit(complaint)}
-                          className="text-xs bg-green-100 text-green-700 hover:bg-green-200"
-                        >
-                          Edit
-                        </Button>
-                      )}
-                      
-                      {/* Quick Status Update for SRC members */}
-                      {userRole === 'src' && onUpdateStatus && (
-                        <select
-                          value={complaint.status}
-                          onChange={(e) => onUpdateStatus(complaint, e.target.value as ComplaintStatus)}
-                          className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49] bg-white"
-                        >
-                          <option value="pending">⏳ Pending</option>
-                          <option value="in_progress">🔄 In Progress</option>
-                          <option value="resolved">✅ Resolved</option>
-                          <option value="closed">🔒 Closed</option>
-                        </select>
-                      )}
-                      
-                      {/* Quick Priority Update for SRC members */}
-                      {userRole === 'src' && onUpdatePriority && (
-                        <select
-                          value={complaint.priority}
-                          onChange={(e) => onUpdatePriority(complaint, e.target.value as ComplaintPriority)}
-                          className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49] bg-white"
-                        >
-                          <option value="low">🟢 Low</option>
-                          <option value="medium">🟡 Medium</option>
-                          <option value="high">🟠 High</option>
-                          <option value="urgent">🔴 Urgent</option>
-                        </select>
-                      )}
-                      
-                      {/* Quick Response for SRC members */}
-                      {userRole === 'src' && onAddResponse && (
-                        <select
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              onAddResponse(complaint, e.target.value);
-                              e.target.value = ''; // Reset selection
-                            }
-                          }}
-                          className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49] bg-white"
-                        >
-                          <option value="">💬 Quick Response</option>
-                          <option value="We have received your complaint and are investigating the issue.">Received & Investigating</option>
-                          <option value="We are currently working on resolving your complaint.">Working on it</option>
-                          <option value="Your complaint has been resolved. Please let us know if you need anything else.">Resolved</option>
-                          <option value="We need more information to proceed. Please contact us.">Need More Info</option>
-                        </select>
-                      )}
-                      
-                      {onRespond && (userRole === 'src' || userRole === 'admin') && 
-                        (userRole === 'admin' || complaint.assigned_to?.id === currentUserId) && (
-                        <Button
-                          onClick={() => onRespond(complaint)}
-                          className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200"
-                        >
-                          Respond
-                        </Button>
-                      )}
-                      {onDelete && (userRole === 'admin' || (userRole === 'student' && complaint.student_id === currentUserId)) && (
-                        <Button
-                          onClick={() => onDelete(complaint)}
-                          className="text-xs bg-red-100 text-red-700 hover:bg-red-200"
-                        >
-                          Delete
                         </Button>
                       )}
                     </div>
