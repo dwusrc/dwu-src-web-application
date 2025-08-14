@@ -591,7 +591,7 @@ export default function SRCDashboard() {
                 onPageChange={setCurrentPage}
                 sortBy="created_at"
                 sortOrder="desc"
-                onSort={() => {}}
+
               />
             </div>
           )}

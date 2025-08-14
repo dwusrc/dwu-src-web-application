@@ -500,7 +500,7 @@ export default function StudentDashboard() {
                   onPageChange={setCurrentPage}
                   sortBy="created_at"
                   sortOrder="desc"
-                  onSort={() => {}}
+
                 />
               </div>
             </Suspense>

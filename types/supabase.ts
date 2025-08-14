@@ -66,10 +66,6 @@ export interface Complaint {
   resolved_at?: string;
   // Department-based complaint routing
   departments_selected: string[]; // Array of SRC department IDs
-  assigned_department?: string; // Single department that claimed the complaint
-  is_claimed: boolean; // Whether the complaint has been claimed by a department
-  claimed_at?: string; // Timestamp when the complaint was claimed
-  claimed_by?: string; // SRC member who claimed the complaint
   created_at: string;
   updated_at: string;
 }
