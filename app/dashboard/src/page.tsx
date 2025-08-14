@@ -86,10 +86,14 @@ export default function SRCDashboard() {
     response?: string;
   }>({});
 
+  // Analytics data state - Removed since analytics is now a separate page
+
   // Check if there are any pending changes
   const hasPendingChanges = () => {
     return Object.values(pendingChanges).some(value => value !== undefined);
   };
+
+  // Fetch analytics data - Removed since analytics is now a separate page
 
   // Mock data for other features
   const stats: DashboardStats = {
@@ -152,8 +156,8 @@ export default function SRCDashboard() {
       
       for (const deptId of departmentIds) {
         const response = await fetch(`/api/departments/${deptId}/members`);
-        if (response.ok) {
-          const data = await response.json();
+      if (response.ok) {
+        const data = await response.json();
           console.log(`Members from department ${deptId}:`, data.members);
           if (data.members && data.members.length > 0) {
             // Add department info to each member to avoid duplicates
@@ -169,7 +173,7 @@ export default function SRCDashboard() {
             }));
             allMembers.push(...membersWithDept);
           }
-        } else {
+      } else {
           console.error(`Failed to fetch members for department ${deptId}:`, response.status);
         }
       }
@@ -269,7 +273,7 @@ export default function SRCDashboard() {
       if (pendingChanges.status !== undefined) {
         hasChanges = true;
         const response = await fetch(`/api/complaints/${selectedComplaint.id}/status`, {
-          method: 'PUT',
+        method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: pendingChanges.status }),
         });
@@ -330,6 +334,8 @@ export default function SRCDashboard() {
   useEffect(() => {
     fetchComplaints();
   }, []);
+
+  // Load analytics data when analytics tab is selected - Removed since analytics is now a separate page
 
   const proposals: Proposal[] = [
     {
@@ -415,14 +421,24 @@ export default function SRCDashboard() {
                 {[
                   { id: 'overview', name: 'Overview', icon: '📊', shortName: 'Overview' },
                   { id: 'complaints', name: 'Complaints', icon: '⚠️', shortName: 'Complaints' },
+                  { id: 'analytics', name: 'Analytics', icon: '📈', shortName: 'Analytics', href: '/dashboard/src/analytics' },
                   { id: 'proposals', name: 'Proposals', icon: '📋', shortName: 'Proposals' },
                   { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
                   { id: 'communication', name: 'Communication', icon: '💬', shortName: 'Comm' },
                   { id: 'services', name: 'Student Services', icon: '👥', shortName: 'Services' },
-                ].map((tab) => (
+                ].map((tab: { id: string; name: string; icon: string; shortName: string; href?: string }) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      console.log('🖱️ Tab clicked:', tab.id);
+                      if ('href' in tab && tab.href) {
+                        // Navigate to external page
+                        window.location.href = tab.href;
+                      } else {
+                        // Set active tab for internal content
+                        setActiveTab(tab.id);
+                      }
+                    }}
                     className={`py-2 px-3 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-[#359d49] text-[#359d49]'
@@ -579,6 +595,8 @@ export default function SRCDashboard() {
               />
             </div>
           )}
+
+
 
           {/* Proposals Tab */}
           {activeTab === 'proposals' && (
@@ -857,122 +875,214 @@ export default function SRCDashboard() {
                       <p className="text-sm text-blue-700">
                         ⚠️ You have pending changes. Click &quot;Update Complaint&quot; to save them.
                       </p>
-                    </div>
+                </div>
                   )}
                 </div>
-                <form className="p-6 space-y-4">
+                <form className="p-6 space-y-6">
+                  {/* Student Complaint Details - Prominently Displayed */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                        <span className="text-xl">📝</span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-blue-900">Student Complaint Details</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {/* Title */}
                   <div>
-                    <h4 className="font-medium text-gray-900">{selectedComplaint.title}</h4>
-                    <p className="text-sm text-gray-600 mt-1">Submitted by {selectedComplaint.student?.full_name} from {selectedComplaint.student?.department}</p>
-                    <p className="text-sm text-gray-600 mt-2">{selectedComplaint.description}</p>
+                        <label className="block text-sm font-medium text-blue-700 mb-2">Complaint Title</label>
+                        <div className="bg-white border border-blue-200 rounded-md p-3">
+                          <h4 className="font-medium text-gray-900 text-lg">{selectedComplaint.title}</h4>
                   </div>
-                  
-                  {/* Quick Actions */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    {/* Assignment */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Assign To {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 && (
-                          <span className="text-gray-500 text-xs">
-                            ({selectedComplaint.departments_selected.length > 1 ? 'from all target departments' : 'from target department'})
-                          </span>
-                        )}
-                      </label>
-                      <select 
-                        value={pendingChanges.assigned_to !== undefined ? pendingChanges.assigned_to : (selectedComplaint.assigned_to?.id || '')}
-                        onChange={(e) => setPendingChanges(prev => ({ ...prev, assigned_to: e.target.value || undefined }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
-                      >
-                        <option value="">Unassigned</option>
-                        {departmentMembers.length > 0 ? (
-                          <optgroup label={`All Department Members (${departmentMembers.length} available)`}>
-                            {departmentMembers.map((member) => (
-                              <option key={member.id} value={member.id}>
-                                {member.full_name} {member.department_name && `(${member.department_name})`}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ) : (
-                          <option value="" disabled>No department members available</option>
-                        )}
-                      </select>
-                      {pendingChanges.assigned_to !== undefined ? (
-                        <p className="text-sm text-blue-600 mt-2">
-                          ⚠️ Pending: Will be assigned to {departmentMembers.find(m => m.id === pendingChanges.assigned_to)?.full_name || 'selected member'}
-                        </p>
-                      ) : selectedComplaint.assigned_to ? (
-                        <p className="text-sm text-gray-600 mt-2">
-                          Currently assigned to: <span className="font-medium">{selectedComplaint.assigned_to.full_name}</span>
-                        </p>
-                      ) : null}
-                      {departmentMembers.length === 0 && (
-                        <p className="text-sm text-gray-500 mt-2">
-                          {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 
-                            ? 'Loading department members...' 
-                            : 'No target departments found for this complaint'
-                          }
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Status Update */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                      <select 
-                        value={pendingChanges.status !== undefined ? pendingChanges.status : selectedComplaint.status}
-                        onChange={(e) => setPendingChanges(prev => ({ ...prev, status: e.target.value as ComplaintStatus }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
-                      >
-                        <option value="pending">⏳ Pending</option>
-                        <option value="in_progress">🔄 In Progress</option>
-                        <option value="resolved">✅ Resolved</option>
-                        <option value="closed">🔒 Closed</option>
-                        <option value="rejected">❌ Rejected</option>
-                      </select>
-                      {pendingChanges.status !== undefined && pendingChanges.status !== selectedComplaint.status && (
-                        <p className="text-sm text-blue-600 mt-2">
-                          ⚠️ Pending: Will change from {selectedComplaint.status} to {pendingChanges.status}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Priority Update */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                      <select 
-                        value={pendingChanges.priority !== undefined ? pendingChanges.priority : selectedComplaint.priority}
-                        onChange={(e) => setPendingChanges(prev => ({ ...prev, priority: e.target.value as ComplaintPriority }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
-                      >
-                        <option value="low">🟢 Low</option>
-                        <option value="medium">🟡 Medium</option>
-                        <option value="high">🟠 High</option>
-                        <option value="urgent">🔴 Urgent</option>
-                      </select>
-                      {pendingChanges.priority !== undefined && pendingChanges.priority !== selectedComplaint.priority && (
-                        <p className="text-sm text-blue-600 mt-2">
-                          ⚠️ Pending: Will change from {selectedComplaint.priority} to {pendingChanges.priority}
-                        </p>
-                      )}
+                      </div>
+                      
+                      {/* Student Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                          <label className="block text-sm font-medium text-blue-700 mb-2">Submitted By</label>
+                          <div className="bg-white border border-blue-200 rounded-md p-3">
+                            <p className="text-gray-900 font-medium">{selectedComplaint.student?.full_name || 'Unknown Student'}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-blue-700 mb-2">Department</label>
+                          <div className="bg-white border border-blue-200 rounded-md p-3">
+                            <p className="text-gray-900">{selectedComplaint.student?.department || 'Not specified'}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Description */}
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-2">Complaint Description</label>
+                        <div className="bg-white border border-blue-200 rounded-md p-3">
+                          <p className="text-gray-900 leading-relaxed">{selectedComplaint.description}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Target Departments */}
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-2">Target Departments</label>
+                        <div className="bg-white border border-blue-200 rounded-md p-3">
+                          <div className="flex flex-wrap gap-2">
+                            {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 ? (
+                              selectedComplaint.departments_selected.map((deptId) => {
+                                const dept = departmentMembers.find(m => m.department_id === deptId);
+                                return (
+                                  <span key={deptId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {dept?.department_name || deptId}
+                                  </span>
+                                );
+                              })
+                            ) : (
+                              <span className="text-gray-500">No target departments specified</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Response Section */}
-                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Response</label>
+                  {/* Management Actions */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="p-2 bg-gray-100 rounded-lg mr-3">
+                        <span className="text-xl">⚙️</span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Management Actions</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      {/* Assignment */}
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Assign To {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 && (
+                            <span className="text-gray-500 text-xs">
+                              ({selectedComplaint.departments_selected.length > 1 ? 'from all target departments' : 'from target department'})
+                            </span>
+                          )}
+                        </label>
+                      <select 
+                          value={pendingChanges.assigned_to !== undefined ? pendingChanges.assigned_to : (selectedComplaint.assigned_to?.id || '')}
+                          onChange={(e) => setPendingChanges(prev => ({ ...prev, assigned_to: e.target.value || undefined }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+                        >
+                          <option value="">Unassigned</option>
+                          {departmentMembers.length > 0 ? (
+                            <optgroup label={`All Department Members (${departmentMembers.length} available)`}>
+                              {departmentMembers.map((member) => (
+                                <option key={member.id} value={member.id}>
+                                  {member.full_name} {member.department_name && `(${member.department_name})`}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ) : (
+                            <option value="" disabled>No department members available</option>
+                          )}
+                      </select>
+                        {pendingChanges.assigned_to !== undefined ? (
+                          <p className="text-sm text-blue-600 mt-2">
+                            ⚠️ Pending: Will be assigned to {departmentMembers.find(m => m.id === pendingChanges.assigned_to)?.full_name || 'selected member'}
+                          </p>
+                        ) : selectedComplaint.assigned_to ? (
+                          <p className="text-sm text-gray-600 mt-2">
+                            Currently assigned to: <span className="font-medium">{selectedComplaint.assigned_to.full_name}</span>
+                          </p>
+                        ) : null}
+                        {departmentMembers.length === 0 && (
+                          <p className="text-sm text-gray-500 mt-2">
+                            {selectedComplaint.departments_selected && selectedComplaint.departments_selected.length > 0 
+                              ? 'Loading department members...' 
+                              : 'No target departments found for this complaint'
+                            }
+                          </p>
+                        )}
+                    </div>
+
+                      {/* Status Update */}
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                      <select 
+                          value={pendingChanges.status !== undefined ? pendingChanges.status : selectedComplaint.status}
+                          onChange={(e) => setPendingChanges(prev => ({ ...prev, status: e.target.value as ComplaintStatus }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+                        >
+                          <option value="pending">⏳ Pending</option>
+                          <option value="in_progress">🔄 In Progress</option>
+                          <option value="resolved">✅ Resolved</option>
+                          <option value="closed">🔒 Closed</option>
+                          <option value="rejected">❌ Rejected</option>
+                      </select>
+                        {pendingChanges.status !== undefined && pendingChanges.status !== selectedComplaint.status && (
+                          <p className="text-sm text-blue-600 mt-2">
+                            ⚠️ Pending: Will change from {selectedComplaint.status} to {pendingChanges.status}
+                          </p>
+                        )}
+                    </div>
+
+                      {/* Priority Update */}
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                        <select 
+                          value={pendingChanges.priority !== undefined ? pendingChanges.priority : selectedComplaint.priority}
+                          onChange={(e) => setPendingChanges(prev => ({ ...prev, priority: e.target.value as ComplaintPriority }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+                        >
+                          <option value="low">🟢 Low</option>
+                          <option value="medium">🟡 Medium</option>
+                          <option value="high">🟠 High</option>
+                          <option value="urgent">🔴 Urgent</option>
+                        </select>
+                        {pendingChanges.priority !== undefined && pendingChanges.priority !== selectedComplaint.priority && (
+                          <p className="text-sm text-blue-600 mt-2">
+                            ⚠️ Pending: Will change from {selectedComplaint.priority} to {pendingChanges.priority}
+                          </p>
+                        )}
+                  </div>
+                    </div>
+
+                    {/* SRC Response Section - Now part of Management Actions */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <div className="flex items-center mb-4">
+                        <div className="p-2 bg-green-100 rounded-lg mr-3">
+                          <span className="text-xl">💬</span>
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-900">SRC Response</h4>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {/* Current Response Display */}
+                        {selectedComplaint.response && (
+                  <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Current Response</label>
+                            <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                              <p className="text-gray-900 leading-relaxed">{selectedComplaint.response}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Response Input */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {selectedComplaint.response ? 'Update Response' : 'Add SRC Response'}
+                          </label>
                     <textarea
                       name="response"
                       rows={4}
-                      value={pendingChanges.response !== undefined ? pendingChanges.response : (selectedComplaint.response || '')}
-                      onChange={(e) => setPendingChanges(prev => ({ ...prev, response: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
-                      placeholder="Enter your response to the student..."
-                    />
-                    {pendingChanges.response !== undefined && pendingChanges.response !== selectedComplaint.response && (
-                      <p className="text-sm text-blue-600 mt-2">
-                        ⚠️ Pending: Response will be updated
-                      </p>
-                    )}
+                            value={pendingChanges.response !== undefined ? pendingChanges.response : (selectedComplaint.response || '')}
+                            onChange={(e) => setPendingChanges(prev => ({ ...prev, response: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+                            placeholder="✍️ Write your response here..."
+                          />
+                          {pendingChanges.response !== undefined && pendingChanges.response !== selectedComplaint.response && (
+                            <p className="text-sm text-blue-600 mt-2">
+                              ⚠️ Pending: Response will be updated
+                            </p>
+                          )}
+                  </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Action Buttons */}
