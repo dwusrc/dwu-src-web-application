@@ -5,7 +5,8 @@ export type PostStatus = 'draft' | 'published' | 'archived';
 export type ComplaintCategory = 'academic' | 'facilities' | 'security' | 'health' | 'transport' | 'other';
 export type ComplaintPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved' | 'closed' | 'rejected';
-export type ProposalStatus = 'pending' | 'under_review' | 'approved' | 'rejected';
+export type ProjectStatus = 'not_started' | 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type ForumCategory = 'general' | 'academic' | 'events' | 'suggestions' | 'announcements';
 
 export type NotificationType = 'complaint_update' | 'news_post' | 'forum_reply' | 'system';
@@ -108,20 +109,58 @@ export interface ComplaintFormData {
   target_departments: string[]; // Array of department IDs or 'all'
 }
 
-export interface ProjectProposal {
+// SRC Project types
+export interface SrcProject {
   id: string;
-  student_id: string;
+  department_id: string;
   title: string;
   description: string;
   objectives: string;
-  budget?: number;
-  timeline_months?: number;
-  status: ProposalStatus;
-  reviewed_by?: string;
-  review_notes?: string;
+  start_date?: string;
+  target_finish_date?: string;
+  actual_finish_date?: string;
+  progress_percentage: number;
+  budget_allocated?: number;
+  budget_spent?: number;
+  team_members?: string[];
+  status: ProjectStatus;
+  approval_status: ApprovalStatus;
+  approved_by?: string;
   approved_at?: string;
+  rejection_reason?: string;
+  created_by?: string;
   created_at: string;
   updated_at: string;
+}
+
+export type SrcProjectWithRelations = SrcProject & {
+  department?: {
+    id: string;
+    name: string;
+    color: string;
+    description?: string;
+  };
+  created_by_user?: {
+    id: string;
+    full_name: string;
+    role: string;
+  };
+  approved_by_user?: {
+    id: string;
+    full_name: string;
+    role: string;
+  };
+};
+
+// Form data for SRC project submission
+export interface SrcProjectFormData {
+  title: string;
+  description: string;
+  objectives: string;
+  start_date?: string;
+  target_finish_date?: string;
+  budget_allocated?: number;
+  team_members?: string[];
 }
 
 export interface ForumTopic {
@@ -149,8 +188,6 @@ export interface ForumReply {
   created_at: string;
   updated_at: string;
 }
-
-
 
 export interface Report {
   id: string;

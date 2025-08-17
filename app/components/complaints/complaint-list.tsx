@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { ComplaintCategory, ComplaintPriority, ComplaintStatus, ComplaintWithRelations } from '@/types/supabase';
+import { ComplaintPriority, ComplaintStatus, ComplaintWithRelations } from '@/types/supabase';
 
 interface ComplaintListProps {
   complaints: ComplaintWithRelations[];
@@ -13,30 +13,6 @@ interface ComplaintListProps {
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }
-
-const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
-  academic: 'Academic',
-  facilities: 'Facilities',
-  security: 'Security',
-  health: 'Health',
-  transport: 'Transport',
-  other: 'Other',
-};
-
-const PRIORITY_CONFIG: Record<ComplaintPriority, { label: string; color: string; bgColor: string }> = {
-  low: { label: 'Low', color: 'text-green-800', bgColor: 'bg-green-100' },
-  medium: { label: 'Medium', color: 'text-yellow-800', bgColor: 'bg-yellow-100' },
-  high: { label: 'High', color: 'text-orange-800', bgColor: 'bg-orange-100' },
-  urgent: { label: 'Urgent', color: 'text-red-800', bgColor: 'bg-red-100' },
-};
-
-const STATUS_CONFIG: Record<ComplaintStatus, { label: string; icon: string; bgColor: string; color: string }> = {
-  pending: { label: 'Pending', icon: '⏳', bgColor: 'bg-yellow-100', color: 'text-yellow-800' },
-  in_progress: { label: 'In Progress', icon: '🔄', bgColor: 'bg-blue-100', color: 'text-blue-800' },
-  resolved: { label: 'Resolved', icon: '✅', bgColor: 'bg-green-100', color: 'text-green-800' },
-  closed: { label: 'Closed', icon: '🔒', bgColor: 'bg-gray-100', color: 'text-gray-800' },
-  rejected: { label: 'Rejected', icon: '❌', bgColor: 'bg-red-100', color: 'text-red-800' },
-};
 
 export default function ComplaintList({
   complaints,
@@ -66,10 +42,55 @@ export default function ComplaintList({
 
   const [localSortBy, setLocalSortBy] = useState(sortBy);
   const [localSortOrder, setLocalSortOrder] = useState(sortOrder);
-  const pageSize = 10;
-  const loading = false;
-  const showFilters = true;
-  const showPagination = true;
+  const pageSize = useMemo(() => 10, []);
+  const loading = useMemo(() => false, []);
+  const showFilters = useMemo(() => true, []);
+  const showPagination = useMemo(() => true, []);
+
+  // Loading skeleton array
+  const loadingSkeletonArray = useMemo(() => [...Array(5)], []);
+
+  const CATEGORY_LABELS = useMemo(() => ({
+    academic: 'Academic',
+    facilities: 'Facilities',
+    security: 'Security',
+    health: 'Health',
+    transport: 'Transport',
+    other: 'Other',
+  }), []);
+
+  const PRIORITY_CONFIG = useMemo(() => ({
+    low: { label: 'Low', color: 'text-green-800', bgColor: 'bg-green-100' },
+    medium: { label: 'Medium', color: 'text-yellow-800', bgColor: 'bg-yellow-100' },
+    high: { label: 'High', color: 'text-orange-800', bgColor: 'bg-orange-100' },
+    urgent: { label: 'Urgent', color: 'text-red-800', bgColor: 'bg-red-100' },
+  }), []);
+
+  const STATUS_CONFIG = useMemo(() => ({
+    pending: { label: 'Pending', icon: '⏳', bgColor: 'bg-yellow-100', color: 'text-yellow-800' },
+    in_progress: { label: 'In Progress', icon: '🔄', bgColor: 'bg-blue-100', color: 'text-blue-800' },
+    resolved: { label: 'Resolved', icon: '✅', bgColor: 'bg-green-100', color: 'text-green-800' },
+    closed: { label: 'Closed', icon: '🔒', bgColor: 'bg-gray-100', color: 'text-gray-800' },
+    rejected: { label: 'Rejected', icon: '❌', bgColor: 'bg-red-100', color: 'text-red-800' },
+  }), []);
+
+  // Quick filter date calculations
+  const quickFilterDates = useMemo(() => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(today);
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+    
+    return {
+      today: today.toISOString().split('T')[0],
+      yesterday: yesterday.toISOString().split('T')[0],
+      weekAgo: weekAgo.toISOString().split('T')[0],
+      monthAgo: monthAgo.toISOString().split('T')[0]
+    };
+  }, []);
 
   // Debounce search query for performance
   useEffect(() => {
@@ -80,194 +101,101 @@ export default function ComplaintList({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
+  }, []);
 
-  const handleSort = (field: 'created_at' | 'priority' | 'status') => {
+  const handleSort = useCallback((field: 'created_at' | 'priority' | 'status') => {
     if (localSortBy === field) {
       setLocalSortOrder(localSortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setLocalSortBy(field);
       setLocalSortOrder('desc');
     }
-  };
+  }, [localSortBy, localSortOrder]);
 
   // Enhanced filtering with search
-  const filteredComplaints = complaints.filter(complaint => {
-    // Search query filtering
-    if (debouncedSearchQuery) {
-      const searchLower = debouncedSearchQuery.toLowerCase();
-      const titleMatch = complaint.title.toLowerCase().includes(searchLower);
-      const descriptionMatch = complaint.description.toLowerCase().includes(searchLower);
-      const studentMatch = complaint.student?.full_name?.toLowerCase().includes(searchLower);
-      const studentIdMatch = complaint.student?.student_id?.toLowerCase().includes(searchLower);
-      const departmentMatch = complaint.target_department_names?.some(dept => 
-        dept.toLowerCase().includes(searchLower)
-      );
-      
-      if (!titleMatch && !descriptionMatch && !studentMatch && !studentIdMatch && !departmentMatch) {
-        return false;
+  const filteredComplaints = useMemo(() => {
+    return complaints.filter(complaint => {
+      // Search query filtering
+      if (debouncedSearchQuery) {
+        const searchLower = debouncedSearchQuery.toLowerCase();
+        const titleMatch = complaint.title.toLowerCase().includes(searchLower);
+        const descriptionMatch = complaint.description.toLowerCase().includes(searchLower);
+        const studentMatch = complaint.student?.full_name?.toLowerCase().includes(searchLower);
+        const studentIdMatch = complaint.student?.student_id?.toLowerCase().includes(searchLower);
+        const departmentMatch = complaint.target_department_names?.some(dept => 
+          dept.toLowerCase().includes(searchLower)
+        );
+        
+        if (!titleMatch && !descriptionMatch && !studentMatch && !studentIdMatch && !departmentMatch) {
+          return false;
+        }
       }
-    }
 
-    // Existing filters
-    if (filters.status && complaint.status !== filters.status) return false;
-    if (filters.priority && complaint.priority !== filters.priority) return false;
-    if (filters.category && complaint.category !== filters.category) return false;
-    if (filters.department && complaint.target_department_names && complaint.target_department_names.length > 0) {
-      if (!complaint.target_department_names.some(dept => dept.toLowerCase().includes(filters.department.toLowerCase()))) return false;
-    }
-    if (filters.dateFrom) {
-      const complaintDate = new Date(complaint.created_at);
-      const fromDate = new Date(filters.dateFrom);
-      if (complaintDate < fromDate) return false;
-    }
-    if (filters.dateTo) {
-      const complaintDate = new Date(complaint.created_at);
-      const toDate = new Date(filters.dateTo);
-      // Set to end of day for inclusive comparison
-      toDate.setHours(23, 59, 59, 999);
-      if (complaintDate > toDate) return false;
-    }
-    return true;
-  });
+      // Existing filters
+      if (filters.status && complaint.status !== filters.status) return false;
+      if (filters.priority && complaint.priority !== filters.priority) return false;
+      if (filters.category && complaint.category !== filters.category) return false;
+      if (filters.department && complaint.target_department_names && complaint.target_department_names.length > 0) {
+        if (!complaint.target_department_names.some(dept => dept.toLowerCase().includes(filters.department.toLowerCase()))) return false;
+      }
+      if (filters.dateFrom) {
+        const complaintDate = new Date(complaint.created_at);
+        const fromDate = new Date(filters.dateFrom);
+        if (complaintDate < fromDate) return false;
+      }
+      if (filters.dateTo) {
+        const complaintDate = new Date(complaint.created_at);
+        const toDate = new Date(filters.dateTo);
+        // Set to end of day for inclusive comparison
+        toDate.setHours(23, 59, 59, 999);
+        if (complaintDate > toDate) return false;
+      }
+      return true;
+    });
+  }, [complaints, filters, debouncedSearchQuery]);
 
   // Update select all when filtered complaints change
   useEffect(() => {
     if (filteredComplaints.length === 0) {
       setSelectAll(false);
       setSelectedComplaints(new Set());
-    } else if (selectedComplaints.size === filteredComplaints.length) {
+    } else if (selectedComplaints.size === filteredComplaints.length && filteredComplaints.length > 0) {
       setSelectAll(true);
-    } else {
+    } else if (selectedComplaints.size !== filteredComplaints.length) {
       setSelectAll(false);
     }
-  }, [filteredComplaints, selectedComplaints]);
-
-  // Bulk selection handlers
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedComplaints(new Set());
-      setSelectAll(false);
-    } else {
-      setSelectedComplaints(new Set(filteredComplaints.map(c => c.id)));
-      setSelectAll(true);
-    }
-  };
-
-  const handleSelectComplaint = (complaintId: string) => {
-    const newSelected = new Set(selectedComplaints);
-    if (newSelected.has(complaintId)) {
-      newSelected.delete(complaintId);
-    } else {
-      newSelected.add(complaintId);
-    }
-    setSelectedComplaints(newSelected);
-  };
-
-  const sortedComplaints = [...filteredComplaints].sort((a, b) => {
-    let aValue: number, bValue: number;
-
-    switch (localSortBy) {
-      case 'created_at':
-        aValue = new Date(a.created_at).getTime();
-        bValue = new Date(b.created_at).getTime();
-        break;
-      case 'priority':
-        const priorityOrder = { low: 1, medium: 2, high: 3, urgent: 4 };
-        aValue = priorityOrder[a.priority] || 0;
-        bValue = priorityOrder[b.priority] || 0;
-        break;
-      case 'status':
-        const statusOrder = { pending: 1, in_progress: 2, resolved: 3, closed: 4, rejected: 5 };
-        aValue = statusOrder[a.status] || 0;
-        bValue = statusOrder[b.status] || 0;
-        break;
-      default:
-        aValue = 0;
-        bValue = 0;
-    }
-
-    if (localSortOrder === 'asc') {
-      return aValue - bValue;
-    } else {
-      return bValue - aValue;
-    }
-  });
-
-  const totalPages = Math.ceil(totalCount / pageSize);
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const handleFilterChange = (filterType: 'status' | 'priority' | 'department' | 'category' | 'dateFrom' | 'dateTo', value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: value
-    }));
-  };
-
-  const clearAllFilters = () => {
-    setFilters({ status: '', priority: '', department: '', category: '', dateFrom: '', dateTo: '' });
-    setSearchQuery('');
-  };
-
-  // Highlight search terms in text
-  const highlightText = (text: string, searchTerm: string) => {
-    if (!searchTerm) return text;
-    
-    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
-      regex.test(part) ? (
-        <mark key={index} className="bg-yellow-200 px-1 rounded">{part}</mark>
-      ) : part
-    );
-  };
+  }, [filteredComplaints.length, selectedComplaints.size]); // Only depend on lengths, not the actual objects
 
   // CSV Export functionality
-  const exportToCSV = (complaintsToExport: ComplaintWithRelations[]) => {
+  const csvHeaders = useMemo(() => [
+    'ID',
+    'Title',
+    'Description',
+    'Student Name',
+    'Student ID',
+    'Student Department',
+    'Category',
+    'Priority',
+    'Status',
+    'Target Departments',
+    'Assigned To',
+    'Response',
+    'Created At',
+    'Updated At'
+  ], []);
+
+  const exportToCSV = useCallback((complaintsToExport: ComplaintWithRelations[]) => {
     if (complaintsToExport.length === 0) {
       alert('No complaints to export');
       return;
     }
-
-    // Define CSV headers
-    const headers = [
-      'ID',
-      'Title',
-      'Description',
-      'Student Name',
-      'Student ID',
-      'Student Department',
-      'Category',
-      'Priority',
-      'Status',
-      'Target Departments',
-      'Assigned To',
-      'Response',
-      'Created At',
-      'Updated At'
-    ];
 
     // Convert complaints to CSV rows
     const csvRows = complaintsToExport.map(complaint => [
@@ -288,7 +216,7 @@ export default function ComplaintList({
     ]);
 
     // Combine headers and rows
-    const csvContent = [headers, ...csvRows]
+    const csvContent = [csvHeaders, ...csvRows]
       .map(row => row.join(','))
       .join('\n');
 
@@ -302,10 +230,31 @@ export default function ComplaintList({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, [csvHeaders]);
+
+  // Bulk selection handlers
+  const handleSelectAll = useCallback(() => {
+    if (selectAll) {
+      setSelectedComplaints(new Set());
+      setSelectAll(false);
+    } else {
+      setSelectedComplaints(new Set(filteredComplaints.map(c => c.id)));
+      setSelectAll(true);
+    }
+  }, [selectAll, filteredComplaints]);
+
+  const handleSelectComplaint = useCallback((complaintId: string) => {
+    const newSelected = new Set(selectedComplaints);
+    if (newSelected.has(complaintId)) {
+      newSelected.delete(complaintId);
+    } else {
+      newSelected.add(complaintId);
+    }
+    setSelectedComplaints(newSelected);
+  }, [selectedComplaints]);
 
   // Bulk action handlers
-  const handleBulkStatusUpdate = async (newStatus: ComplaintStatus) => {
+  const handleBulkStatusUpdate = useCallback(async (newStatus: ComplaintStatus) => {
     if (selectedComplaints.size === 0) {
       alert('Please select complaints to update');
       return;
@@ -320,13 +269,13 @@ export default function ComplaintList({
         // Clear selection after successful update
         setSelectedComplaints(new Set());
         setSelectAll(false);
-      } catch (error) {
+      } catch {
         alert('Failed to update complaints. Please try again.');
       }
     }
-  };
+  }, [selectedComplaints.size]);
 
-  const handleBulkPriorityUpdate = async (newPriority: ComplaintPriority) => {
+  const handleBulkPriorityUpdate = useCallback(async (newPriority: ComplaintPriority) => {
     if (selectedComplaints.size === 0) {
       alert('Please select complaints to update');
       return;
@@ -341,11 +290,134 @@ export default function ComplaintList({
         // Clear selection after successful update
         setSelectedComplaints(new Set());
         setSelectAll(false);
-      } catch (error) {
+      } catch {
         alert('Failed to update complaints. Please try again.');
       }
     }
-  };
+  }, [selectedComplaints.size]);
+
+  const sortedComplaints = useMemo(() => {
+    const priorityOrder = { low: 1, medium: 2, high: 3, urgent: 4 };
+    const statusOrder = { pending: 1, in_progress: 2, resolved: 3, closed: 4, rejected: 5 };
+    
+    return [...filteredComplaints].sort((a, b) => {
+      let aValue: number, bValue: number;
+
+      switch (localSortBy) {
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case 'priority':
+          aValue = priorityOrder[a.priority] || 0;
+          bValue = priorityOrder[b.priority] || 0;
+          break;
+        case 'status':
+          aValue = statusOrder[a.status] || 0;
+          bValue = statusOrder[b.status] || 0;
+          break;
+        default:
+          aValue = 0;
+          bValue = 0;
+      }
+
+      if (localSortOrder === 'asc') {
+        return aValue - bValue;
+      } else {
+        return bValue - aValue;
+      }
+    });
+  }, [filteredComplaints, localSortBy, localSortOrder]);
+
+  const totalPages = useMemo(() => Math.ceil(totalCount / pageSize), [totalCount, pageSize]);
+
+  // Search results summary
+  const searchResultsSummary = useMemo(() => {
+    if (!debouncedSearchQuery) return null;
+    return `Found ${filteredComplaints.length} complaints matching "${debouncedSearchQuery}"`;
+  }, [debouncedSearchQuery, filteredComplaints.length]);
+
+  // Complaints count display text
+  const complaintsCountText = useMemo(() => {
+    return `Showing ${filteredComplaints.length} of ${complaints.length} complaints`;
+  }, [filteredComplaints.length, complaints.length]);
+
+  // Selected complaints count text
+  const selectedComplaintsText = useMemo(() => {
+    if (selectedComplaints.size === 0) return null;
+    return `(${selectedComplaints.size} selected)`;
+  }, [selectedComplaints.size]);
+
+  // Selected complaints count text for bulk actions
+  const selectedComplaintsCountText = useMemo(() => {
+    const count = selectedComplaints.size;
+    return `${count} complaint${count !== 1 ? 's' : ''} selected`;
+  }, [selectedComplaints.size]);
+
+  // No complaints found message
+  const noComplaintsMessage = useMemo(() => {
+    if (debouncedSearchQuery) {
+      return `No complaints found matching "${debouncedSearchQuery}"`;
+    }
+    return 'No complaints found';
+  }, [debouncedSearchQuery]);
+
+  // Pagination info text
+  const paginationInfoText = useMemo(() => {
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalCount);
+    return `Showing ${start} to ${end} of ${totalCount} results`;
+  }, [currentPage, pageSize, totalCount]);
+
+  // Pagination buttons array
+  const paginationButtons = useMemo(() => {
+    return [...Array(totalPages)].map((_, i) => i + 1);
+  }, [totalPages]);
+
+  // Bulk actions visibility
+  const showBulkActions = useMemo(() => selectedComplaints.size > 0, [selectedComplaints.size]);
+
+  // Filter and utility handlers
+  const handleFilterChange = useCallback((filterType: 'status' | 'priority' | 'department' | 'category' | 'dateFrom' | 'dateTo', value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setFilters({ status: '', priority: '', department: '', category: '', dateFrom: '', dateTo: '' });
+    setSearchQuery('');
+  }, []);
+
+  // Highlight search terms in text
+  const highlightText = useCallback((text: string, searchTerm: string) => {
+    if (!searchTerm) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 px-1 rounded">{part}</mark>
+      ) : part
+    );
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="space-y-3">
+            {loadingSkeletonArray.map((_, i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -379,9 +451,9 @@ export default function ComplaintList({
           </div>
 
           {/* Search Results Summary */}
-          {debouncedSearchQuery && (
+          {searchResultsSummary && (
             <div className="text-sm text-blue-600">
-              Found {filteredComplaints.length} complaints matching &quot;{debouncedSearchQuery}&quot;
+              {searchResultsSummary}
             </div>
           )}
 
@@ -402,13 +474,10 @@ export default function ComplaintList({
             </Button>
             <Button
               onClick={() => {
-                const today = new Date();
-                const weekAgo = new Date(today);
-                weekAgo.setDate(weekAgo.getDate() - 7);
                 setFilters(prev => ({
                   ...prev,
-                  dateFrom: weekAgo.toISOString().split('T')[0],
-                  dateTo: today.toISOString().split('T')[0]
+                  dateFrom: quickFilterDates.weekAgo,
+                  dateTo: quickFilterDates.today
                 }));
               }}
               className="text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg shadow-sm"
@@ -426,12 +495,12 @@ export default function ComplaintList({
       </div>
 
       {/* Bulk Actions Bar */}
-      {selectedComplaints.size > 0 && (
+      {showBulkActions && (
         <div className="p-4 border-b border-gray-200 bg-yellow-50">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-yellow-800">
-                {selectedComplaints.size} complaint{selectedComplaints.size !== 1 ? 's' : ''} selected
+                {selectedComplaintsCountText}
               </span>
               <Button
                 onClick={() => {
@@ -494,13 +563,8 @@ export default function ComplaintList({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">
-              Showing {filteredComplaints.length} of {complaints.length} complaints
+              {complaintsCountText} {selectedComplaintsText}
             </span>
-            {selectedComplaints.size > 0 && (
-              <span className="text-sm text-blue-600">
-                ({selectedComplaints.size} selected)
-              </span>
-            )}
           </div>
           
           <div className="flex gap-2">
@@ -598,13 +662,10 @@ export default function ComplaintList({
             <span className="text-xs font-medium text-gray-700 mr-2">Quick Date Filters:</span>
             <Button
               onClick={() => {
-                const today = new Date();
-                const yesterday = new Date(today);
-                yesterday.setDate(yesterday.getDate() - 1);
                 setFilters(prev => ({
                   ...prev,
-                  dateFrom: yesterday.toISOString().split('T')[0],
-                  dateTo: today.toISOString().split('T')[0]
+                  dateFrom: quickFilterDates.yesterday,
+                  dateTo: quickFilterDates.today
                 }));
               }}
               className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1"
@@ -613,13 +674,10 @@ export default function ComplaintList({
             </Button>
             <Button
               onClick={() => {
-                const today = new Date();
-                const weekAgo = new Date(today);
-                weekAgo.setDate(weekAgo.getDate() - 7);
                 setFilters(prev => ({
                   ...prev,
-                  dateFrom: weekAgo.toISOString().split('T')[0],
-                  dateTo: today.toISOString().split('T')[0]
+                  dateFrom: quickFilterDates.weekAgo,
+                  dateTo: quickFilterDates.today
                 }));
               }}
               className="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1"
@@ -628,13 +686,10 @@ export default function ComplaintList({
             </Button>
             <Button
               onClick={() => {
-                const today = new Date();
-                const monthAgo = new Date(today);
-                monthAgo.setMonth(monthAgo.getMonth() - 1);
                 setFilters(prev => ({
                   ...prev,
-                  dateFrom: monthAgo.toISOString().split('T')[0],
-                  dateTo: today.toISOString().split('T')[0]
+                  dateFrom: quickFilterDates.monthAgo,
+                  dateTo: quickFilterDates.today
                 }));
               }}
               className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1"
@@ -716,7 +771,7 @@ export default function ComplaintList({
             {sortedComplaints.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
-                  {debouncedSearchQuery ? `No complaints found matching "${debouncedSearchQuery}"` : 'No complaints found'}
+                  {noComplaintsMessage}
                 </td>
               </tr>
             ) : (
@@ -853,11 +908,7 @@ export default function ComplaintList({
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
-                  <span className="font-medium">
-                    {Math.min(currentPage * pageSize, totalCount)}
-                  </span>{' '}
-                  of <span className="font-medium">{totalCount}</span> results
+                  {paginationInfoText}
                 </p>
               </div>
               <div>
@@ -869,22 +920,19 @@ export default function ComplaintList({
                   >
                     Previous
                   </Button>
-                  {[...Array(totalPages)].map((_, i) => {
-                    const page = i + 1;
-                    return (
-                      <Button
-                        key={page}
-                        onClick={() => onPageChange?.(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          page === currentPage
-                            ? 'z-10 bg-[#359d49] border-[#359d49] text-white'
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
-                        {page}
-                      </Button>
-                    );
-                  })}
+                  {paginationButtons.map((page) => (
+                    <Button
+                      key={page}
+                      onClick={() => onPageChange?.(page)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        page === currentPage
+                          ? 'z-10 bg-[#359d49] border-[#359d49] text-white'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  ))}
                   <Button
                     onClick={() => onPageChange?.(currentPage + 1)}
                     disabled={currentPage >= totalPages}
