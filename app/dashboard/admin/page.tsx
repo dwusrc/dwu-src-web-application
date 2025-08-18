@@ -1,561 +1,336 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { User } from '@supabase/supabase-js';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
-import { Button } from '@/app/components/ui/button';
-import AdminProjectApproval from '@/app/components/src-projects/admin-project-approval';
 
-interface User {
+// Lazy load components
+const UserManagement = lazy(() => import('@/app/components/admin/user-management'));
+const AdminProjectApproval = lazy(() => import('@/app/components/src-projects/admin-project-approval'));
+
+interface Profile {
   id: string;
-  email: string;
   full_name: string;
+  email: string;
   role: 'student' | 'src' | 'admin';
-  student_id: string | null;
-  department: string | null;
-  src_department: string | null;
-  year_level: number | null;
-  phone: string | null;
-  is_active: boolean;
+  src_department?: string;
   created_at: string;
+  is_active: boolean;
 }
 
-interface EditUserForm {
-  full_name: string;
-  email: string;
-  role: 'student' | 'src' | 'admin';
-  student_id: string;
-  department: string;
-  src_department: string;
-  year_level: number;
-  phone: string;
-  is_active: boolean;
+interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalDepartments: number;
+  pendingSRCProjects: number;
 }
 
 export default function AdminDashboard() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [selectedRole, setSelectedRole] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState<EditUserForm>({
-    full_name: '',
-    email: '',
-    role: 'student',
-    student_id: '',
-    department: '',
-    src_department: '',
-    year_level: 1,
-    phone: '',
-    is_active: true,
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'departments' | 'src-projects'>('overview');
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalDepartments: 0,
+    pendingSRCProjects: 0
   });
-  const [srcDepartments, setSrcDepartments] = useState<Array<{name: string, description: string, color: string}>>([]);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => {
-    fetchUsers();
-    fetchSrcDepartments();
-  }, []);
+  const tabs = [
+    { id: 'overview', name: 'Dashboard Overview', icon: '📊', shortName: 'Overview' },
+    { id: 'users', name: 'User Management', icon: '👥', shortName: 'Users' },
+    { id: 'departments', name: 'Department Management', icon: '🏢', shortName: 'Departments' },
+    { id: 'src-projects', name: 'SRC Projects Management', icon: '🚀', shortName: 'SRC Projects' }
+  ];
 
-  const fetchSrcDepartments = async () => {
+  const checkUser = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/departments');
-      if (response.ok) {
-        const data = await response.json();
-        setSrcDepartments(data.departments || []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        await fetchProfile(user.id);
       }
     } catch (error) {
-      console.error('Failed to fetch SRC departments:', error);
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('/api/admin/users');
-      const data = await response.json();
-      
-      if (response.ok) {
-        setUsers(data.users);
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to fetch users' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to fetch users' });
+      console.error('Error checking user:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const openEditModal = (user: User) => {
-    setEditingUser(user);
-    setEditForm({
-      full_name: user.full_name,
-      email: user.email,
-      role: user.role,
-      student_id: user.student_id || '',
-      department: user.department || '',
-      src_department: user.src_department || '',
-      year_level: user.year_level || 1,
-      phone: user.phone || '',
-      is_active: user.is_active,
-    });
-  };
+  useEffect(() => {
+    checkUser();
+    fetchStats();
+  }, [checkUser]);
 
-  const closeEditModal = () => {
-    setEditingUser(null);
-    setEditForm({
-      full_name: '',
-      email: '',
-      role: 'student',
-      student_id: '',
-      department: '',
-      src_department: '',
-      year_level: 1,
-      phone: '',
-      is_active: true,
-    });
-    setShowDeleteConfirm(false);
-  };
-
-  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setEditForm(prev => ({
-      ...prev,
-      [name]: type === 'number' ? parseInt(value) || 1 : value,
-    }));
-  };
-
-  const handleEditFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser) return;
-
+  const fetchProfile = async (userId: string) => {
     try {
-      const response = await fetch('/api/admin/users/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: editingUser.id,
-          ...editForm,
-        }),
-      });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-      const data = await response.json();
-      
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'User updated successfully' });
-        closeEditModal();
-        fetchUsers(); // Refresh the user list
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to update user' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to update user' });
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
     }
   };
 
-  const deleteUser = async () => {
-    if (!editingUser) return;
-
+  const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/users/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: editingUser.id }),
-      });
+      // Fetch user stats
+      const { count: totalUsers } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
 
-      const data = await response.json();
-      
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'User deleted successfully' });
-        closeEditModal();
-        fetchUsers(); // Refresh the user list
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to delete user' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to delete user' });
+      const { count: activeUsers } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      // Fetch department stats
+      const { count: totalDepartments } = await supabase
+        .from('src_departments')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch pending SRC projects
+      const { count: pendingSRCProjects } = await supabase
+        .from('src_projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('approval_status', 'pending');
+
+      setStats({
+        totalUsers: totalUsers || 0,
+        activeUsers: activeUsers || 0,
+        totalDepartments: totalDepartments || 0,
+        pendingSRCProjects: pendingSRCProjects || 0
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
   };
-
-  const filteredUsers = users.filter(user => {
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
-    const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (user.student_id && user.student_id.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesRole && matchesSearch;
-  });
 
   if (loading) {
     return (
-      <ProtectedRoute requiredRole="admin">
-        <PageLayout>
-          <div className="flex h-screen items-center justify-center">
-            <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-[#359d49]"></div>
-          </div>
-        </PageLayout>
-      </ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#359d49]"></div>
+      </div>
+    );
+  }
+
+  if (!user || profile?.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+          <p className="text-gray-600">You need admin privileges to access this dashboard.</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <ProtectedRoute requiredRole="admin">
+    <ProtectedRoute>
       <PageLayout>
-        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#2a6b39]">Admin Dashboard</h1>
-            <p className="text-gray-600 mt-2">Manage users, roles, and system settings</p>
-          </div>
-
-          {message && (
-            <div className={`p-4 mb-6 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {message.text}
-            </div>
-          )}
-
-          {/* Filters and Search */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-                  Search Users
-                </label>
-                <input
-                  type="text"
-                  id="search"
-                  placeholder="Search by name, email, or student ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                />
-              </div>
-              <div className="sm:w-48">
-                <label htmlFor="role-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                  Filter by Role
-                </label>
-                <select
-                  id="role-filter"
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                >
-                  <option value="all">All Roles</option>
-                  <option value="student">Students</option>
-                  <option value="src">SRC Members</option>
-                  <option value="admin">Admins</option>
-                </select>
+        <div className="min-h-screen bg-gray-50">
+          {/* Header */}
+          <div className="bg-white shadow">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center py-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+                  <p className="text-gray-600">Welcome back, {profile.full_name}</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#359d49] text-white">
+                    Admin
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Users Table */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800">User Management</h2>
-              <p className="text-sm text-gray-600 mt-1">Total Users: {filteredUsers.length}</p>
+          {/* Tab Navigation */}
+          <div className="bg-white border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <nav className="flex space-x-8">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as 'overview' | 'users' | 'departments' | 'src-projects')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === tab.id
+                        ? 'border-[#359d49] text-[#359d49]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="mr-2">{tab.icon}</span>
+                    <span className="hidden md:inline">{tab.name}</span>
+                    <span className="md:hidden">{tab.shortName}</span>
+                  </button>
+                ))}
+              </nav>
             </div>
-            
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student ID
-                    </th>
-                    <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      SRC Department
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-3 sm:px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
-                          <div className="text-xs text-gray-500 md:hidden">
-                            Student ID: {user.student_id || 'N/A'} • Status: {user.is_active ? 'Active' : 'Inactive'}
+          </div>
+
+          {/* Tab Content */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Stats Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-[#359d49] rounded-md flex items-center justify-center">
+                            <span className="text-white text-lg">👥</span>
                           </div>
                         </div>
-                      </td>
-                      <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
-                        {user.student_id || 'N/A'}
-                      </td>
-                      <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
-                        {user.department || 'N/A'}
-                      </td>
-                      <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
-                        {user.role === 'src' ? (user.src_department || 'N/A') : 'N/A'}
-                      </td>
-                      <td className="px-3 sm:px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                          user.role === 'src' ? 'bg-blue-100 text-blue-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {user.role.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="hidden sm:table-cell px-3 sm:px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {user.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 text-sm font-medium">
-                        <Button
-                          onClick={() => openEditModal(user)}
-                          className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-2 sm:px-3 py-1"
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No users found matching your criteria.</p>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                            <dd className="text-lg font-medium text-gray-900">{stats.totalUsers}</dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-[#359d49] rounded-md flex items-center justify-center">
+                            <span className="text-white text-lg">✅</span>
+                          </div>
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">Active Users</dt>
+                            <dd className="text-lg font-medium text-gray-900">{stats.activeUsers}</dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-[#359d49] rounded-md flex items-center justify-center">
+                            <span className="text-white text-lg">🏢</span>
+                          </div>
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">Departments</dt>
+                            <dd className="text-lg font-medium text-gray-900">{stats.totalDepartments}</dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-[#359d49] rounded-md flex items-center justify-center">
+                            <span className="text-white text-lg">⏳</span>
+                          </div>
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">Pending SRC Projects</dt>
+                            <dd className="text-lg font-medium text-gray-900">{stats.pendingSRCProjects}</dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="bg-white shadow rounded-lg p-6">
+                  <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                      onClick={() => setActiveTab('users')}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-2xl mr-3">👥</span>
+                      <div className="text-left">
+                        <h3 className="font-medium text-gray-900">Manage Users</h3>
+                        <p className="text-sm text-gray-500">Add, edit, and manage user accounts</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('departments')}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-2xl mr-3">🏢</span>
+                      <div className="text-left">
+                        <h3 className="font-medium text-gray-900">Manage Departments</h3>
+                        <p className="text-sm text-gray-500">Configure SRC departments and settings</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('src-projects')}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-2xl mr-3">🚀</span>
+                      <div className="text-left">
+                        <h3 className="font-medium text-gray-900">SRC Projects</h3>
+                        <p className="text-sm text-gray-500">Review and approve SRC projects</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Edit User Modal */}
-          {editingUser && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Edit User: {editingUser.full_name}</h3>
+            {activeTab === 'users' && (
+              <Suspense fallback={
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
                 </div>
-                
-                <form onSubmit={handleEditFormSubmit} className="p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        id="full_name"
-                        name="full_name"
-                        value={editForm.full_name}
-                        onChange={handleEditFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={editForm.email}
-                        onChange={handleEditFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                        Role *
-                      </label>
-                      <select
-                        id="role"
-                        name="role"
-                        value={editForm.role}
-                        onChange={handleEditFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      >
-                        <option value="student">Student</option>
-                        <option value="src">SRC Member</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="student_id" className="block text-sm font-medium text-gray-700 mb-1">
-                        Student ID
-                      </label>
-                      <input
-                        type="text"
-                        id="student_id"
-                        name="student_id"
-                        value={editForm.student_id}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      />
-                    </div>
-                    
-                                         <div>
-                       <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
-                         Department
-                       </label>
-                       <input
-                         type="text"
-                         id="department"
-                         name="department"
-                         value={editForm.department}
-                         onChange={handleEditFormChange}
-                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                       />
-                     </div>
-                     
-                     {editForm.role === 'src' && (
-                       <div>
-                         <label htmlFor="src_department" className="block text-sm font-medium text-gray-700 mb-1">
-                           SRC Department *
-                         </label>
-                         <select
-                           id="src_department"
-                           name="src_department"
-                           value={editForm.src_department}
-                           onChange={handleEditFormChange}
-                           required={editForm.role === 'src'}
-                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                         >
-                           <option value="">Select SRC Department</option>
-                           {srcDepartments.map((dept) => (
-                             <option key={dept.name} value={dept.name}>
-                               {dept.name}
-                             </option>
-                           ))}
-                         </select>
-                       </div>
-                     )}
-                    
-                    <div>
-                      <label htmlFor="year_level" className="block text-sm font-medium text-gray-700 mb-1">
-                        Year Level
-                      </label>
-                      <input
-                        type="number"
-                        id="year_level"
-                        name="year_level"
-                        min="1"
-                        max="4"
-                        value={editForm.year_level}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone
-                      </label>
-                      <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={editForm.phone}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="is_active" className="block text-sm font-medium text-gray-700 mb-1">
-                        Account Status
-                      </label>
-                      <select
-                        id="is_active"
-                        name="is_active"
-                        value={editForm.is_active.toString()}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-transparent"
-                      >
-                        <option value="true">Active</option>
-                        <option value="false">Inactive</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between pt-4 border-t border-gray-200">
-                    <div className="flex space-x-2">
-                      <Button
-                        type="submit"
-                        className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                      >
-                        Save Changes
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={closeEditModal}
-                        className="bg-gray-300 hover:bg-gray-400 text-gray-700"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      {!showDeleteConfirm ? (
-                        <Button
-                          type="button"
-                          onClick={() => setShowDeleteConfirm(true)}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          Delete User
-                        </Button>
-                      ) : (
-                        <div className="flex space-x-2">
-                          <Button
-                            type="button"
-                            onClick={deleteUser}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                          >
-                            Confirm Delete
-                          </Button>
-                          <Button
-                            type="button"
-                            onClick={() => setShowDeleteConfirm(false)}
-                            className="bg-gray-300 hover:bg-gray-400 text-gray-700"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-        </div>
+              }>
+                <UserManagement />
+              </Suspense>
+            )}
 
-        {/* SRC Projects Management Section */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden mt-8">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-800">SRC Projects Management</h2>
-            <p className="text-sm text-gray-600 mt-1">Approve, reject, and manage all SRC projects</p>
-          </div>
-          <div className="p-6">
-            <AdminProjectApproval />
+            {activeTab === 'departments' && (
+              <div className="bg-white shadow rounded-lg p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Department Management</h2>
+                <p className="text-gray-600">Department management features coming soon...</p>
+              </div>
+            )}
+
+            {activeTab === 'src-projects' && (
+              <Suspense fallback={
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
+                </div>
+              }>
+                <div className="space-y-6">
+                  <div className="bg-white shadow rounded-lg p-6">
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">SRC Projects Management</h2>
+                    <p className="text-gray-600 mb-6">
+                      Review, approve, and manage SRC projects submitted by department members.
+                    </p>
+                    <AdminProjectApproval />
+                  </div>
+                </div>
+              </Suspense>
+            )}
           </div>
         </div>
       </PageLayout>
