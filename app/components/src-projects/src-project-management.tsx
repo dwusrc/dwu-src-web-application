@@ -240,6 +240,17 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
           onCancel={() => setEditingProject(null)}
           isSubmitting={isSubmitting}
           submitLabel="Update Project"
+          initialData={{
+            title: editingProject.title,
+            description: editingProject.description,
+            objectives: editingProject.objectives,
+            start_date: editingProject.start_date || '',
+            target_finish_date: editingProject.target_finish_date || '',
+            budget_allocated: editingProject.budget_allocated,
+            team_members: editingProject.team_members || [],
+            progress_percentage: editingProject.progress_percentage,
+            status: editingProject.status
+          }}
         />
       </div>
     );

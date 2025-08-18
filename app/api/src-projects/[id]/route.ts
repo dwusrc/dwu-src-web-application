@@ -137,9 +137,7 @@ export async function PUT(
       budget_allocated,
       budget_spent,
       team_members,
-      status,
-      challenges,
-      next_steps
+      status
     } = body;
 
     // Validation
@@ -170,8 +168,6 @@ export async function PUT(
         budget_spent: budget_spent || null,
         team_members: team_members || existingProject.team_members,
         status: status || existingProject.status,
-        challenges: challenges || null,
-        next_steps: next_steps || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)

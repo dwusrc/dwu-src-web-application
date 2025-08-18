@@ -129,7 +129,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
           <p className="text-gray-600">You need admin privileges to access this dashboard.</p>
         </div>
-      </div>
+          </div>
     );
   }
 
@@ -144,12 +144,12 @@ export default function AdminDashboard() {
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
                   <p className="text-gray-600">Welcome back, {profile.full_name}</p>
-                </div>
+          </div>
                 <div className="flex items-center space-x-4">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#359d49] text-white">
                     Admin
                   </span>
-                </div>
+              </div>
               </div>
             </div>
           </div>
@@ -175,8 +175,8 @@ export default function AdminDashboard() {
                 ))}
               </nav>
             </div>
-          </div>
-
+            </div>
+            
           {/* Tab Content */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {activeTab === 'overview' && (
@@ -197,10 +197,10 @@ export default function AdminDashboard() {
                             <dd className="text-lg font-medium text-gray-900">{stats.totalUsers}</dd>
                           </dl>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
+                          </div>
+                        </div>
+            </div>
+            
                   <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="p-5">
                       <div className="flex items-center">
@@ -216,8 +216,8 @@ export default function AdminDashboard() {
                           </dl>
                         </div>
                       </div>
-                    </div>
-                  </div>
+              </div>
+          </div>
 
                   <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="p-5">
@@ -232,30 +232,30 @@ export default function AdminDashboard() {
                             <dt className="text-sm font-medium text-gray-500 truncate">Departments</dt>
                             <dd className="text-lg font-medium text-gray-900">{stats.totalDepartments}</dd>
                           </dl>
-                        </div>
-                      </div>
+                </div>
                     </div>
-                  </div>
-
+                    </div>
+                    </div>
+                    
                   <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="p-5">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-[#359d49] rounded-md flex items-center justify-center">
                             <span className="text-white text-lg">⏳</span>
-                          </div>
-                        </div>
+                    </div>
+                     </div>
                         <div className="ml-5 w-0 flex-1">
                           <dl>
                             <dt className="text-sm font-medium text-gray-500 truncate">Pending SRC Projects</dt>
                             <dd className="text-lg font-medium text-gray-900">{stats.pendingSRCProjects}</dd>
                           </dl>
-                        </div>
-                      </div>
+                       </div>
+                    </div>
+                    </div>
                     </div>
                   </div>
-                </div>
-
+                  
                 {/* Quick Actions */}
                 <div className="bg-white shadow rounded-lg p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
@@ -279,7 +279,7 @@ export default function AdminDashboard() {
                       <div className="text-left">
                         <h3 className="font-medium text-gray-900">Manage Departments</h3>
                         <p className="text-sm text-gray-500">Configure SRC departments and settings</p>
-                      </div>
+                    </div>
                     </button>
 
                     <button
@@ -294,8 +294,8 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+                        </div>
+                      )}
 
             {activeTab === 'users' && (
               <Suspense fallback={
@@ -311,14 +311,14 @@ export default function AdminDashboard() {
               <div className="bg-white shadow rounded-lg p-6">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Department Management</h2>
                 <p className="text-gray-600">Department management features coming soon...</p>
-              </div>
+                    </div>
             )}
 
             {activeTab === 'src-projects' && (
               <Suspense fallback={
                 <div className="flex items-center justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
-                </div>
+                  </div>
               }>
                 <div className="space-y-6">
                   <div className="bg-white shadow rounded-lg p-6">
@@ -327,10 +327,10 @@ export default function AdminDashboard() {
                       Review, approve, and manage SRC projects submitted by department members.
                     </p>
                     <AdminProjectApproval />
-                  </div>
-                </div>
+              </div>
+            </div>
               </Suspense>
-            )}
+          )}
           </div>
         </div>
       </PageLayout>

@@ -2,29 +2,33 @@
 
 import { useState } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { SrcProjectFormData } from '@/types/supabase';
+import { SrcProjectFormData, ProjectStatus } from '@/types/supabase';
 
 interface SrcProjectFormProps {
   onSubmit: (data: SrcProjectFormData) => Promise<void>;
   onCancel?: () => void;
   isSubmitting?: boolean;
   submitLabel?: string;
+  initialData?: SrcProjectFormData;
 }
 
 export default function SrcProjectForm({
   onSubmit,
   onCancel,
   isSubmitting = false,
-  submitLabel = 'Submit Project'
+  submitLabel = 'Submit Project',
+  initialData
 }: SrcProjectFormProps) {
   const [formData, setFormData] = useState<SrcProjectFormData>({
-    title: '',
-    description: '',
-    objectives: '',
-    start_date: '',
-    target_finish_date: '',
-    budget_allocated: undefined,
-    team_members: []
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    objectives: initialData?.objectives || '',
+    start_date: initialData?.start_date || '',
+    target_finish_date: initialData?.target_finish_date || '',
+    budget_allocated: initialData?.budget_allocated,
+    team_members: initialData?.team_members || [],
+    progress_percentage: initialData?.progress_percentage || 0,
+    status: initialData?.status || 'not_started'
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -235,6 +239,50 @@ export default function SrcProjectForm({
           {errors.budget_allocated && (
             <p className="mt-1 text-sm text-red-600">{errors.budget_allocated}</p>
           )}
+        </div>
+
+        {/* Progress Percentage */}
+        <div>
+          <label htmlFor="progress_percentage" className="block text-sm font-medium text-gray-700 mb-2">
+            Progress Percentage
+          </label>
+          <div className="flex items-center space-x-2">
+            <input
+              type="range"
+              id="progress_percentage"
+              min="0"
+              max="100"
+              value={formData.progress_percentage || 0}
+              onChange={(e) => handleInputChange('progress_percentage', parseInt(e.target.value))}
+              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+            />
+            <span className="text-sm font-medium text-gray-700 min-w-[3rem] text-right">
+              {formData.progress_percentage || 0}%
+            </span>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Drag the slider to set project completion percentage
+          </div>
+        </div>
+
+        {/* Project Status */}
+        <div>
+          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+            Project Status
+          </label>
+          <select
+            id="status"
+            value={formData.status || 'not_started'}
+            onChange={(e) => handleInputChange('status', e.target.value as ProjectStatus)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+          >
+            <option value="not_started">Not Started</option>
+            <option value="planning">Planning</option>
+            <option value="in_progress">In Progress</option>
+            <option value="on_hold">On Hold</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
         </div>
 
         {/* Team Members */}

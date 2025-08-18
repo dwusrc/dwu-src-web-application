@@ -161,6 +161,8 @@ export interface SrcProjectFormData {
   target_finish_date?: string;
   budget_allocated?: number;
   team_members?: string[];
+  progress_percentage?: number;
+  status?: ProjectStatus;
 }
 
 export interface ForumTopic {
