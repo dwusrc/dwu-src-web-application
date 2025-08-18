@@ -13,6 +13,7 @@ const FeaturedNews = lazy(() => import('@/app/components/news/featured-news'));
 const ComplaintForm = lazy(() => import('@/app/components/forms/complaint-form'));
 const ComplaintList = lazy(() => import('@/app/components/complaints/complaint-list'));
 const ComplaintView = lazy(() => import('@/app/components/forms/complaint-view'));
+const SrcProjectList = lazy(() => import('@/app/components/src-projects/src-project-list'));
 
 
 // Loading component for lazy-loaded components
@@ -260,6 +261,7 @@ export default function StudentDashboard() {
     { id: 'news', name: 'News & Updates', shortName: 'News', icon: '📢' },
     { id: 'complaints', name: 'My Complaints', shortName: 'Complaints', icon: '⚠️' },
     { id: 'proposals', name: 'My Proposals', shortName: 'Proposals', icon: '📋' },
+    { id: 'src-projects', name: 'SRC Projects', shortName: 'Projects', icon: '🚀' },
     { id: 'forums', name: 'Forums', shortName: 'Forums', icon: '📝' },
     { id: 'profile', name: 'Profile', shortName: 'Profile', icon: '👤' },
   ];
@@ -543,6 +545,23 @@ export default function StudentDashboard() {
             </div>
           )}
 
+          {/* SRC Projects Tab */}
+          {activeTab === 'src-projects' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">SRC Projects</h2>
+                <p className="text-sm text-gray-600">View approved SRC initiatives and projects</p>
+              </div>
+              <Suspense fallback={<LoadingSpinner />}>
+                <SrcProjectList
+                  userRole="student"
+                  userDepartment=""
+                  showCreateButton={false}
+                  onCreateNew={() => {}}
+                />
+              </Suspense>
+            </div>
+          )}
 
 
           {/* Forums Tab */}

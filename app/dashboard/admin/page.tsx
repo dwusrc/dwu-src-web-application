@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
+import AdminProjectApproval from '@/app/components/src-projects/admin-project-approval';
 
 interface User {
   id: string;
@@ -545,6 +546,17 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* SRC Projects Management Section */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden mt-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-800">SRC Projects Management</h2>
+            <p className="text-sm text-gray-600 mt-1">Approve, reject, and manage all SRC projects</p>
+          </div>
+          <div className="p-6">
+            <AdminProjectApproval />
+          </div>
         </div>
       </PageLayout>
     </ProtectedRoute>

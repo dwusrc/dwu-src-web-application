@@ -6,7 +6,7 @@ import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
 import NewsManagement from '@/app/components/news/news-management';
 import ComplaintList from '@/app/components/complaints/complaint-list';
-
+import SrcProjectManagement from '@/app/components/src-projects/src-project-management';
 
 
 import { Complaint, ComplaintStatus, ComplaintPriority, SrcDepartment } from '@/types/supabase';
@@ -423,6 +423,7 @@ export default function SRCDashboard() {
                   { id: 'complaints', name: 'Complaints', icon: '⚠️', shortName: 'Complaints' },
                   { id: 'analytics', name: 'Analytics', icon: '📈', shortName: 'Analytics', href: '/dashboard/src/analytics' },
                   { id: 'proposals', name: 'Proposals', icon: '📋', shortName: 'Proposals' },
+                  { id: 'src-projects', name: 'SRC Projects', icon: '🚀', shortName: 'Projects' },
                   { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
                   { id: 'communication', name: 'Communication', icon: '💬', shortName: 'Comm' },
                   { id: 'services', name: 'Student Services', icon: '👥', shortName: 'Services' },
@@ -668,6 +669,17 @@ export default function SRCDashboard() {
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* SRC Projects Tab */}
+          {activeTab === 'src-projects' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">SRC Project Management</h2>
+                <p className="text-sm text-gray-600">Manage projects for your department</p>
+              </div>
+              <SrcProjectManagement userDepartment={session?.user?.user_metadata?.src_department || 'General'} />
             </div>
           )}
 
