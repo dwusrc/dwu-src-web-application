@@ -248,7 +248,7 @@ export default function TestPhase2SrcProjectsPage() {
                   <li><strong>Project List:</strong> Test viewing projects, filtering by department/status, and responsive design</li>
                   <li><strong>Project Management:</strong> Test creating, editing, and deleting projects (SRC role only)</li>
                   <li><strong>Admin Approval:</strong> Test approving, rejecting, and managing projects (Admin role only)</li>
-                  <li><strong>Quick Project Creation:</strong> Use the "Create New Project" button above for quick testing</li>
+                  <li><strong>Quick Project Creation:</strong> Use the &quot;Create New Project&quot; button above for quick testing</li>
                   <li>Switch between different user roles and departments to test access control</li>
                   <li>Check browser console for any errors or API responses</li>
                 </ul>

@@ -81,7 +81,6 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
       });
 
       if (response.ok) {
-        const result = await response.json();
         alert('Project created successfully and pending approval!');
         setShowCreateForm(false);
         fetchProjects(); // Refresh the list
@@ -112,7 +111,6 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
       });
 
       if (response.ok) {
-        const result = await response.json();
         alert('Project updated successfully!');
         setEditingProject(null);
         fetchProjects(); // Refresh the list
