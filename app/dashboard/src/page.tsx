@@ -507,6 +507,18 @@ export default function SRCDashboard() {
                     </div>
                   </div>
                 </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <span className="text-2xl">⏳</span>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Pending SRC Projects</p>
+                      <p className="text-2xl font-bold text-yellow-600">-</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Quick Actions */}
@@ -542,6 +554,12 @@ export default function SRCDashboard() {
                     className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
                   >
                     👥 Student Dir
+                  </Button>
+                  <Button
+                    onClick={() => setActiveTab('src-projects')}
+                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                  >
+                    🚀 SRC Projects
                   </Button>
                   <Button
                     onClick={() => setActiveTab('services')}

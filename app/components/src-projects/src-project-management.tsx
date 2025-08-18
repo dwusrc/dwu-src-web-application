@@ -1,12 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SrcProjectWithRelations, ProjectStatus } from '@/types/supabase';
+import { SrcProjectWithRelations, ProjectStatus, ApprovalStatus } from '@/types/supabase';
 import SrcProjectForm from '@/app/components/forms/src-project-form';
 import { SrcProjectFormData } from '@/types/supabase';
 
 interface SrcProjectManagementProps {
   userDepartment: string;
+}
+
+interface ProjectSummary {
+  pending: number;
+  approved: number;
+  rejected: number;
+  total: number;
 }
 
 export default function SrcProjectManagement({ userDepartment }: SrcProjectManagementProps) {
@@ -17,6 +24,12 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
   const [editingProject, setEditingProject] = useState<SrcProjectWithRelations | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [projectSummary, setProjectSummary] = useState<ProjectSummary>({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    total: 0
+  });
 
   useEffect(() => {
     fetchProjects();
@@ -27,7 +40,8 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
       setLoading(true);
       setError(null);
 
-      let url = '/api/src-projects';
+      // Use the new SRC-specific endpoint that shows all projects including pending
+      let url = '/api/src-projects/src';
       if (selectedStatus !== 'all') {
         url += `?status=${selectedStatus}`;
       }
@@ -35,11 +49,13 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        // Filter projects by user's department
-        const departmentProjects = data.projects.filter((project: SrcProjectWithRelations) => 
-          project.department?.name === userDepartment
-        );
-        setProjects(departmentProjects);
+        setProjects(data.projects || []);
+        setProjectSummary(data.summary || {
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          total: 0
+        });
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to fetch projects');
@@ -159,12 +175,26 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
     }
   };
 
+  const getApprovalStatusColor = (approvalStatus: ApprovalStatus) => {
+    switch (approvalStatus) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getApprovalStatusLabel = (approvalStatus: ApprovalStatus) => {
+    switch (approvalStatus) {
+      case 'pending': return 'Pending Approval';
+      case 'approved': return 'Approved';
+      case 'rejected': return 'Rejected';
+      default: return approvalStatus;
+    }
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return new Date(dateString).toLocaleDateString();
   };
 
   if (showCreateForm) {
@@ -237,6 +267,79 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
         </button>
       </div>
 
+      {/* Project Summary Badges */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <span className="text-2xl">⏳</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Pending Approval</p>
+              <p className="text-2xl font-bold text-yellow-600">{projectSummary.pending}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <span className="text-2xl">✅</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Approved</p>
+              <p className="text-2xl font-bold text-green-600">{projectSummary.approved}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <span className="text-2xl">❌</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Rejected</p>
+              <p className="text-2xl font-bold text-red-600">{projectSummary.rejected}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <span className="text-2xl">📊</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Total</p>
+              <p className="text-2xl font-bold text-blue-600">{projectSummary.total}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pending Approval Section */}
+      {projectSummary.pending > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">
+                ⏳ Pending Approval ({projectSummary.pending} project{projectSummary.pending !== 1 ? 's' : ''})
+              </h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>You have {projectSummary.pending} project{projectSummary.pending !== 1 ? 's' : ''} waiting for admin approval. 
+                These will appear in the list below once approved.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status Filter */}
       <div className="w-full sm:w-64">
         <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
@@ -293,68 +396,213 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
           </p>
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
-            {projects.map((project) => (
-              <li key={project.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-[#359d49] truncate">
-                          {project.title}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                            {getStatusLabel(project.status)}
-                          </span>
-                          {project.approval_status === 'pending' && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              Pending Approval
-                            </span>
-                          )}
+        <div className="space-y-6">
+          {/* Projects by Approval Status */}
+          {projectSummary.pending > 0 && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                <span className="text-yellow-600 mr-2">⏳</span>
+                Pending Approval ({projectSummary.pending})
+              </h3>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg overflow-hidden">
+                <ul className="divide-y divide-yellow-200">
+                  {projects
+                    .filter(project => project.approval_status === 'pending')
+                    .map((project) => (
+                      <li key={project.id}>
+                        <div className="px-4 py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {project.title}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                                    {getStatusLabel(project.status)}
+                                  </span>
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
+                                    {getApprovalStatusLabel(project.approval_status)}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                                {project.description}
+                              </p>
+                              
+                              <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                                <span>Progress: {project.progress_percentage}%</span>
+                                {project.start_date && (
+                                  <span>Started: {formatDate(project.start_date)}</span>
+                                )}
+                                {project.target_finish_date && (
+                                  <span>Target: {formatDate(project.target_finish_date)}</span>
+                                )}
+                                {project.budget_allocated && (
+                                  <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 ml-4">
+                              <button
+                                onClick={() => handleDeleteProject(project.id)}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      
-                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">
-                        {project.description}
-                      </p>
-                      
-                      <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                        <span>Progress: {project.progress_percentage}%</span>
-                        {project.start_date && (
-                          <span>Started: {formatDate(project.start_date)}</span>
-                        )}
-                        {project.target_finish_date && (
-                          <span>Target: {formatDate(project.target_finish_date)}</span>
-                        )}
-                        {project.budget_allocated && (
-                          <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 ml-4">
-                      {project.approval_status === 'approved' && (
-                        <button
-                          onClick={() => setEditingProject(project)}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDeleteProject(project.id)}
-                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Approved Projects */}
+          {projectSummary.approved > 0 && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                <span className="text-green-600 mr-2">✅</span>
+                Approved Projects ({projectSummary.approved})
+              </h3>
+              <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                <ul className="divide-y divide-gray-200">
+                  {projects
+                    .filter(project => project.approval_status === 'approved')
+                    .map((project) => (
+                      <li key={project.id}>
+                        <div className="px-4 py-4 sm:px-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-[#359d49] truncate">
+                                  {project.title}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                                    {getStatusLabel(project.status)}
+                                  </span>
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
+                                    {getApprovalStatusLabel(project.approval_status)}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                                {project.description}
+                              </p>
+                              
+                              <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                                <span>Progress: {project.progress_percentage}%</span>
+                                {project.start_date && (
+                                  <span>Started: {formatDate(project.start_date)}</span>
+                                )}
+                                {project.target_finish_date && (
+                                  <span>Target: {formatDate(project.target_finish_date)}</span>
+                                )}
+                                {project.budget_allocated && (
+                                  <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 ml-4">
+                              <button
+                                onClick={() => setEditingProject(project)}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProject(project.id)}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Rejected Projects */}
+          {projectSummary.rejected > 0 && (
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                <span className="text-red-600 mr-2">❌</span>
+                Rejected Projects ({projectSummary.rejected})
+              </h3>
+              <div className="bg-red-50 border border-red-200 rounded-lg overflow-hidden">
+                <ul className="divide-y divide-red-200">
+                  {projects
+                    .filter(project => project.approval_status === 'rejected')
+                    .map((project) => (
+                      <li key={project.id}>
+                        <div className="px-4 py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {project.title}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                                    {getStatusLabel(project.status)}
+                                  </span>
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
+                                    {getApprovalStatusLabel(project.approval_status)}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                                {project.description}
+                              </p>
+                              
+                              {project.rejection_reason && (
+                                <div className="mt-2 p-2 bg-red-100 rounded text-xs text-red-800">
+                                  <strong>Rejection Reason:</strong> {project.rejection_reason}
+                                </div>
+                              )}
+                              
+                              <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                                <span>Progress: {project.progress_percentage}%</span>
+                                {project.start_date && (
+                                  <span>Started: {formatDate(project.start_date)}</span>
+                                )}
+                                {project.target_finish_date && (
+                                  <span>Target: {formatDate(project.target_finish_date)}</span>
+                                )}
+                                {project.budget_allocated && (
+                                  <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 ml-4">
+                              <button
+                                onClick={() => handleDeleteProject(project.id)}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
