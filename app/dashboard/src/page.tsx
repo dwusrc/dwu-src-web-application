@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
@@ -123,7 +123,7 @@ export default function SRCDashboard() {
   };
 
   // Fetch complaints from API
-  const fetchComplaints = async (page: number = 1) => {
+  const fetchComplaints = useCallback(async (page: number = 1) => {
     try {
       const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
       if (response.ok) {
@@ -137,7 +137,7 @@ export default function SRCDashboard() {
     } catch {
       alert('Failed to load complaints');
     }
-  };
+  }, []);
 
   // Handle complaint actions
   const fetchDepartmentMembers = async (departmentIds: string[]) => {
@@ -208,31 +208,6 @@ export default function SRCDashboard() {
       console.log('No target departments found for complaint');
       // If no target departments, clear the members list
       setDepartmentMembers([]);
-    }
-  };
-
-  const handleAddResponse = async (complaint: ComplaintWithRelations, response: string) => {
-    try {
-      const apiResponse = await fetch(`/api/complaints/${complaint.id}/response`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ response }),
-      });
-
-      if (apiResponse.ok) {
-        const data = await apiResponse.json();
-        setComplaints(prev => prev.map(c => c.id === complaint.id ? data.complaint : c));
-        if (selectedComplaint?.id === complaint.id) {
-          setSelectedComplaint(data.complaint);
-        }
-        alert('Response added successfully');
-      } else {
-        alert('Failed to add response');
-      }
-    } catch {
-      alert('Failed to add response');
     }
   };
 
@@ -325,15 +300,10 @@ export default function SRCDashboard() {
     }
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    fetchComplaints(page);
-  };
-
   // Load complaints on component mount
   useEffect(() => {
     fetchComplaints();
-  }, []);
+  }, [fetchComplaints]);
 
   // Load analytics data when analytics tab is selected - Removed since analytics is now a separate page
 

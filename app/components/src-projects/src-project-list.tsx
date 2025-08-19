@@ -1,19 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { SrcProjectWithRelations, ProjectStatus } from '@/types/supabase';
 
 interface SrcProjectListProps {
-  userRole: 'student' | 'src' | 'admin';
-  userDepartment?: string;
   showCreateButton?: boolean;
   onCreateNew?: () => void;
 }
 
 export default function SrcProjectList({
-  userRole,
-  userDepartment,
   showCreateButton = false,
   onCreateNew
 }: SrcProjectListProps) {
@@ -24,24 +20,7 @@ export default function SrcProjectList({
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [departments, setDepartments] = useState<Array<{id: string, name: string, color: string}>>([]);
 
-  useEffect(() => {
-    fetchProjects();
-    fetchDepartments();
-  }, [selectedDepartment, selectedStatus]);
-
-  const fetchDepartments = async () => {
-    try {
-      const response = await fetch('/api/departments');
-      if (response.ok) {
-        const data = await response.json();
-        setDepartments(data.departments || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch departments:', error);
-    }
-  };
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -73,6 +52,23 @@ export default function SrcProjectList({
       setError('Failed to fetch projects');
     } finally {
       setLoading(false);
+    }
+  }, [selectedDepartment, selectedStatus]);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchDepartments();
+  }, [fetchProjects]);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments');
+      if (response.ok) {
+        const data = await response.json();
+        setDepartments(data.departments || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch departments:', error);
     }
   };
 

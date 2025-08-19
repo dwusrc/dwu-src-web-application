@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { Button } from '@/app/components/ui/button';
@@ -47,7 +47,6 @@ export default function StudentDashboard() {
 
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
   const [complaints, setComplaints] = useState<ComplaintWithRelations[]>([]);
-  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,8 +96,7 @@ export default function StudentDashboard() {
     }));
   };
 
-  const fetchComplaints = async (page: number = 1) => {
-    setLoading(true);
+  const fetchComplaints = useCallback(async (page: number = 1) => {
     try {
       const response = await fetch(`/api/complaints?limit=10&offset=${(page - 1) * 10}`);
       if (!response.ok) {
@@ -110,10 +108,8 @@ export default function StudentDashboard() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching complaints:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
   const handleSubmitComplaint = async (formData: {
     title: string;
@@ -210,16 +206,12 @@ export default function StudentDashboard() {
     }
   };
 
-  const handlePageChange = (page: number) => {
-    fetchComplaints(page);
-  };
-
   // Only fetch complaints when the complaints tab is active
   useEffect(() => {
     if (activeTab === 'complaints') {
       fetchComplaints();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchComplaints]);
 
   // Initialize mobile navigation arrows
   useEffect(() => {
@@ -554,8 +546,6 @@ export default function StudentDashboard() {
               </div>
               <Suspense fallback={<LoadingSpinner />}>
                 <SrcProjectList
-                  userRole="student"
-                  userDepartment=""
                   showCreateButton={false}
                   onCreateNew={() => {}}
                 />

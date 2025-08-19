@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SrcProjectWithRelations, ProjectStatus, ApprovalStatus } from '@/types/supabase';
 
 export default function AdminProjectApproval() {
@@ -18,24 +18,7 @@ export default function AdminProjectApproval() {
     total: 0
   });
 
-  useEffect(() => {
-    fetchProjects();
-    fetchDepartments();
-  }, [selectedDepartment, selectedStatus, selectedApprovalStatus]);
-
-  const fetchDepartments = async () => {
-    try {
-      const response = await fetch('/api/departments');
-      if (response.ok) {
-        const data = await response.json();
-        setDepartments(data.departments || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch departments:', error);
-    }
-  };
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -71,6 +54,23 @@ export default function AdminProjectApproval() {
       setError('Failed to fetch projects');
     } finally {
       setLoading(false);
+    }
+  }, [selectedDepartment, selectedStatus, selectedApprovalStatus]);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchDepartments();
+  }, [fetchProjects]);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments');
+      if (response.ok) {
+        const data = await response.json();
+        setDepartments(data.departments || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch departments:', error);
     }
   };
 

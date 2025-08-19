@@ -248,7 +248,7 @@ function ProfilePageContent() {
                         } else {
                           alert('Error: ' + result.error);
                         }
-                      } catch (error) {
+                      } catch {
                         alert('Error updating profile');
                       } finally {
                         setIsSubmitting(false);

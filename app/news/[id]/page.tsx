@@ -13,7 +13,6 @@ export default function NewsDetailPage() {
   const params = useParams();
   const [post, setPost] = useState<NewsPost | null>(null);
   const [loading, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (params.id) {

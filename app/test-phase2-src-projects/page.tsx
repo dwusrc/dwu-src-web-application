@@ -33,7 +33,6 @@ export default function TestPhase2SrcProjectsPage() {
       });
 
       if (response.ok) {
-        const result = await response.json();
         alert('Project created successfully and pending approval!');
         setShowCreateForm(false);
         // Refresh the current component if it's project management
@@ -190,8 +189,6 @@ export default function TestPhase2SrcProjectsPage() {
           <div className="border-t border-gray-200 pt-6">
             {activeComponent === 'list' && (
               <SrcProjectList
-                userRole={userRole}
-                userDepartment={userDepartment}
                 showCreateButton={userRole === 'src'}
                 onCreateNew={() => setShowCreateForm(true)}
               />

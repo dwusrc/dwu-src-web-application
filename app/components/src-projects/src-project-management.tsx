@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SrcProjectWithRelations, ProjectStatus, ApprovalStatus } from '@/types/supabase';
 import SrcProjectForm from '@/app/components/forms/src-project-form';
 import { SrcProjectFormData } from '@/types/supabase';
@@ -31,11 +31,7 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
     total: 0
   });
 
-  useEffect(() => {
-    fetchProjects();
-  }, [selectedStatus]);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -66,7 +62,11 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const handleCreateProject = async (data: SrcProjectFormData) => {
     try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ToastNotification {
@@ -21,6 +21,13 @@ export function NotificationToast({ notification, onClose }: NotificationToastPr
   const [isVisible, setIsVisible] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
 
+  const handleClose = useCallback(() => {
+    setIsLeaving(true);
+    setTimeout(() => {
+      onClose(notification.id);
+    }, 300);
+  }, [onClose, notification.id]);
+
   useEffect(() => {
     // Trigger entrance animation
     const timer = setTimeout(() => setIsVisible(true), 100);
@@ -35,14 +42,7 @@ export function NotificationToast({ notification, onClose }: NotificationToastPr
       clearTimeout(timer);
       clearTimeout(hideTimer);
     };
-  }, [notification.duration]);
-
-  const handleClose = () => {
-    setIsLeaving(true);
-    setTimeout(() => {
-      onClose(notification.id);
-    }, 300);
-  };
+  }, [notification.duration, handleClose]);
 
   const handleClick = () => {
     if (notification.onClick) {
