@@ -54,7 +54,7 @@ interface Proposal {
 
 
 export default function SRCDashboard() {
-  const { session } = useSession();
+  const { session, profile } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -95,6 +95,8 @@ export default function SRCDashboard() {
     recentActivity: 25,
   };
 
+
+
   // Transform complaint data to match component expectations
   const transformComplaints = (complaints: unknown[]): ComplaintWithRelations[] => {
     return complaints.map((complaint: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -130,6 +132,8 @@ export default function SRCDashboard() {
       alert('Failed to load complaints');
     }
   }, []);
+
+
 
   // Handle complaint actions
   const fetchDepartmentMembers = async (departmentIds: string[]) => {
@@ -649,9 +653,21 @@ export default function SRCDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
                 <p className="text-sm text-gray-600">View and download monthly reports</p>
               </div>
+              
+              {/* Debug Info - Remove after testing */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                <p className="text-blue-800">
+                  <strong>Debug Info:</strong><br/>
+                  User Role: src<br/>
+                  User Department: {profile?.src_department || 'Loading...'}<br/>
+                  Can Upload: {profile?.src_department === 'President' ? 'Yes' : 'No'}<br/>
+                  Profile Loaded: {profile ? 'Yes' : 'No'}
+                </p>
+              </div>
+              
               <ReportsManagement 
                 userRole="src" 
-                userDepartment={session?.user?.user_metadata?.src_department} 
+                userDepartment={profile?.src_department || undefined} 
               />
             </div>
           )}

@@ -17,6 +17,15 @@ export default function ReportsManagement({ userRole, userDepartment }: ReportsM
 
   // Check if user can upload reports
   const canUploadReports = userRole === 'admin' || (userRole === 'src' && userDepartment === 'President');
+  
+  // Debug logging - remove after testing
+  console.log('ReportsManagement Debug:', {
+    userRole,
+    userDepartment,
+    canUploadReports,
+    condition1: userRole === 'admin',
+    condition2: userRole === 'src' && userDepartment === 'President'
+  });
 
   const handleUpload = async (formData: ReportFormData, file: File) => {
     try {

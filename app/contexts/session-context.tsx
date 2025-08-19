@@ -14,6 +14,7 @@ interface UserProfile {
   role: 'student' | 'src' | 'admin';
   avatar_url?: string | null;
   department?: string | null;
+  src_department?: string | null; // SRC department for SRC members
   year_level?: number | null;
   phone?: string | null;
   is_active?: boolean;

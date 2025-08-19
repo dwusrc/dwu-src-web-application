@@ -245,8 +245,8 @@ export default function AdminDashboard() {
                 </div>
                     </div>
                     </div>
-                    </div>
-                    
+                </div>
+                
                   <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="p-5">
                       <div className="flex items-center">
@@ -264,8 +264,8 @@ export default function AdminDashboard() {
                     </div>
                     </div>
                     </div>
-                  </div>
-
+                    </div>
+                    
                   <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="p-5">
                       <div className="flex items-center">
@@ -282,8 +282,8 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                  
+                    </div>
+                    
                 {/* Quick Actions */}
                 <div className="bg-white shadow rounded-lg p-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
                       <div className="text-left">
                         <h3 className="font-medium text-gray-900">Manage Users</h3>
                         <p className="text-sm text-gray-500">Add, edit, and manage user accounts</p>
-                      </div>
+                    </div>
                     </button>
 
                     <button
@@ -318,7 +318,7 @@ export default function AdminDashboard() {
                       <div className="text-left">
                         <h3 className="font-medium text-gray-900">SRC Projects</h3>
                         <p className="text-sm text-gray-500">Review and approve SRC projects</p>
-                      </div>
+                     </div>
                     </button>
 
                     <button
@@ -333,14 +333,14 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
-                        </div>
-                      )}
-
+                       </div>
+                     )}
+                    
             {activeTab === 'users' && (
               <Suspense fallback={
                 <div className="flex items-center justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
-                </div>
+                    </div>
               }>
                 <UserManagement />
               </Suspense>
@@ -366,8 +366,8 @@ export default function AdminDashboard() {
                       Review, approve, and manage SRC projects submitted by department members.
                     </p>
                     <AdminProjectApproval />
-              </div>
-            </div>
+                    </div>
+                  </div>
               </Suspense>
           )}
 
@@ -384,11 +384,11 @@ export default function AdminDashboard() {
                       Upload, manage, and track monthly reports for SRC and Student dashboards.
                     </p>
                     <ReportsManagement userRole="admin" />
-                  </div>
-                </div>
+                    </div>
+                        </div>
               </Suspense>
-            )}
-          </div>
+                      )}
+                    </div>
         </div>
       </PageLayout>
     </ProtectedRoute>
