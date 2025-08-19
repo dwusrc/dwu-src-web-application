@@ -50,12 +50,7 @@ interface Proposal {
   createdAt: string;
 }
 
-// interface NewsPost {
-//   id: string;
-//   title: string;
-//   status: 'draft' | 'published' | 'archived';
-//   createdAt: string;
-// }
+
 
 export default function SRCDashboard() {
   const { session } = useSession();
@@ -86,14 +81,10 @@ export default function SRCDashboard() {
     response?: string;
   }>({});
 
-  // Analytics data state - Removed since analytics is now a separate page
-
   // Check if there are any pending changes
   const hasPendingChanges = () => {
     return Object.values(pendingChanges).some(value => value !== undefined);
   };
-
-  // Fetch analytics data - Removed since analytics is now a separate page
 
   // Mock data for other features
   const stats: DashboardStats = {
@@ -305,8 +296,6 @@ export default function SRCDashboard() {
     fetchComplaints();
   }, [fetchComplaints]);
 
-  // Load analytics data when analytics tab is selected - Removed since analytics is now a separate page
-
   const proposals: Proposal[] = [
     {
       id: '1',
@@ -334,27 +323,7 @@ export default function SRCDashboard() {
     },
   ];
 
-  // Mock news posts data (unused but kept for future implementation)
-  // const newsPosts: NewsPost[] = [
-  //   {
-  //     id: '1',
-  //     title: 'Semester Schedule Update',
-  //     status: 'published',
-  //     createdAt: '2024-01-15',
-  //   },
-  //   {
-  //     id: '2',
-  //     title: 'SRC Election Results',
-  //     status: 'published',
-  //     createdAt: '2024-01-14',
-  //   },
-  //   {
-  //     id: '3',
-  //     title: 'Upcoming Events Calendar',
-  //     status: 'draft',
-  //     createdAt: '2024-01-13',
-  //   },
-  // ];
+
 
 
 
