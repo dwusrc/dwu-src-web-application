@@ -18,4 +18,9 @@ export type { ButtonProps } from './ui/button';
 // News Components
 export { default as NewsManagement } from './news/news-management';
 export { default as NewsDisplay } from './news/news-display';
-export { default as FeaturedNews } from './news/featured-news'; 
+export { default as FeaturedNews } from './news/featured-news';
+
+// Reports Components
+export { default as ReportsManagement } from './reports/reports-management';
+export { default as ReportsList } from './reports/reports-list';
+export { default as ReportUploadForm } from './reports/report-upload-form'; 

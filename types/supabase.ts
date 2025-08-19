@@ -11,6 +11,31 @@ export type ForumCategory = 'general' | 'academic' | 'events' | 'suggestions' | 
 
 export type NotificationType = 'complaint_update' | 'news_post' | 'forum_reply' | 'system';
 
+// Reports types
+export interface Report {
+  id: string;
+  title: string;
+  description?: string;
+  file_url: string;
+  file_name: string;
+  file_size?: number;
+  month: number;
+  year: number;
+  uploaded_by?: string;
+  download_count: number;
+  visibility: string[]; // ['src', 'student'] or ['src'] or ['student']
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReportFormData {
+  title: string;
+  description?: string;
+  month: number;
+  year: number;
+  visibility: string[];
+}
+
 export interface Profile {
   id: string;
   email: string;

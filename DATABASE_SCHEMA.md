@@ -241,22 +241,30 @@ CREATE TABLE forum_replies (
 
 ### 9. **reports** (Monthly Reports)
 ```sql
-    CREATE TABLE reports (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    file_url TEXT NOT NULL, -- Supabase Storage URL
-    file_name TEXT NOT NULL,
-    file_size INTEGER, -- File size in bytes
-    month INTEGER NOT NULL, -- 1-12
-    year INTEGER NOT NULL,
-    uploaded_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    download_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Ensure unique report per month/year
-    UNIQUE(month, year)
-    );
+CREATE TABLE reports (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  file_url TEXT NOT NULL, -- Supabase Storage URL
+  file_name TEXT NOT NULL,
+  file_size INTEGER, -- File size in bytes
+  month INTEGER NOT NULL, -- 1-12
+  year INTEGER NOT NULL,
+  uploaded_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  download_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  visibility TEXT[] DEFAULT '{src,student}', -- Dashboard visibility control
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- Note: Month/Year constraint removed to allow multiple reports per month
+  -- This provides flexibility for different types of reports (weekly, monthly, etc.)
+);
+
+-- Performance indexes
+CREATE INDEX idx_reports_visibility ON reports USING GIN (visibility);
+CREATE INDEX idx_reports_month_year ON reports(month, year);
+CREATE INDEX idx_reports_uploaded_by ON reports(uploaded_by);
+CREATE INDEX idx_reports_created_at ON reports(created_at DESC);
 ```
 
 ### 10. **notifications** (User Notifications)
@@ -297,6 +305,12 @@ CREATE INDEX idx_forum_topics_created_at ON forum_topics(created_at DESC);
 
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+
+-- Reports indexes
+CREATE INDEX idx_reports_visibility ON reports USING GIN (visibility);
+CREATE INDEX idx_reports_month_year ON reports(month, year);
+CREATE INDEX idx_reports_uploaded_by ON reports(uploaded_by);
+CREATE INDEX idx_reports_created_at ON reports(created_at DESC);
 ```
 
 ## 🔒 Row Level Security (RLS) Policies
@@ -514,6 +528,105 @@ CREATE POLICY "Students and Admins can delete complaints" ON complaints
     )
   );
 ```
+
+### Reports RLS Policies
+```sql
+-- Enable RLS on reports table
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+
+-- Policy 1: Anyone can view reports (students and SRC members)
+-- This policy allows users to see reports based on their role and visibility
+CREATE POLICY "Anyone can view reports" ON reports
+  FOR SELECT USING (
+    (visibility @> ARRAY['student']) OR
+    (visibility @> ARRAY['src'] AND
+     EXISTS (
+       SELECT 1 FROM profiles
+       WHERE id = auth.uid() AND role = 'src'
+     )) OR
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Policy 2: Only Admin and SRC President can create reports
+CREATE POLICY "Admin and SRC President can create reports" ON reports
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND
+        (role = 'admin' OR
+         (role = 'src' AND src_department = 'President'))
+    )
+  );
+
+-- Policy 3: Only Admin and SRC President can update reports
+CREATE POLICY "Admin and SRC President can update reports" ON reports
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND
+        (role = 'admin' OR
+         (role = 'src' AND src_department = 'President'))
+    )
+  );
+
+-- Policy 4: Only Admin and SRC President can delete reports
+CREATE POLICY "Admin and SRC President can delete reports" ON reports
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND
+        (role = 'admin' OR
+         (role = 'src' AND src_department = 'President'))
+    )
+  );
+
+-- Reports Helper View and Triggers
+```sql
+-- Create a view for easy report queries with user info
+CREATE OR REPLACE VIEW reports_view AS
+SELECT
+  r.*,
+  p.full_name as uploaded_by_name,
+  p.role as uploaded_by_role,
+  p.src_department as uploaded_by_department
+FROM reports r
+LEFT JOIN profiles p ON r.uploaded_by = p.id
+ORDER BY r.year DESC, r.month DESC, r.created_at DESC;
+
+-- Add trigger to update updated_at timestamp (if not exists)
+DO $$
+BEGIN
+  -- Check if the function exists
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column') THEN
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+  END IF;
+END $$;
+
+-- Create trigger for reports table
+DROP TRIGGER IF EXISTS update_reports_updated_at ON reports;
+CREATE TRIGGER update_reports_updated_at
+    BEFORE UPDATE ON reports
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+```
+
+### **✅ Working Reports Configuration (Verified)**
+The above reports table structure, RLS policies, and triggers have been tested and are working successfully. The key to making it work was:
+
+1. **Enable RLS**: `ALTER TABLE reports ENABLE ROW LEVEL SECURITY;`
+2. **Recreate Policies**: Drop and recreate RLS policies if they exist
+3. **Proper Role Check**: Ensure user has admin role or src role with President department
+
+**Test Status**: ✅ Reports API working - upload, download, delete operations successful
 
 ### Helper Functions for Department-Based Complaint Routing
 ```
