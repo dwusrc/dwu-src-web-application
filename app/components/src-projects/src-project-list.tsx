@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { SrcProjectWithRelations, ProjectStatus } from '@/types/supabase';
 
 interface SrcProjectListProps {
@@ -105,6 +106,14 @@ export default function SrcProjectList({
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Function to truncate text to a safe word limit
+  const truncateText = (text: string, wordLimit: number = 25) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    if (words.length <= wordLimit) return text;
+    return words.slice(0, wordLimit).join(' ') + '...';
   };
 
   if (loading) {
@@ -244,9 +253,9 @@ export default function SrcProjectList({
                   </div>
                 </div>
 
-                {/* Project Description */}
+                {/* Project Description - Truncated */}
                 <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                  {project.description}
+                  {truncateText(project.description, 20)}
                 </p>
 
                 {/* Progress Bar */}
@@ -263,8 +272,8 @@ export default function SrcProjectList({
                   </div>
                 </div>
 
-                {/* Project Details */}
-                <div className="space-y-2 text-sm text-gray-600">
+                {/* Project Details - Truncated */}
+                <div className="space-y-2 text-sm text-gray-600 mb-4">
                   {project.start_date && (
                     <div className="flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,8 +311,21 @@ export default function SrcProjectList({
                   )}
                 </div>
 
+                {/* Read More Link */}
+                <div className="pt-3 border-t border-gray-200">
+                  <Link
+                    href={`/src-projects/${project.id}`}
+                    className="inline-flex items-center text-[#359d49] hover:text-[#2a6b39] font-medium text-sm transition-colors duration-200"
+                  >
+                    Read More
+                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+
                 {/* Created By */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-3 border-t border-gray-200">
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>Created by {project.created_by_user?.full_name}</span>
                     <span>{formatDate(project.created_at)}</span>
