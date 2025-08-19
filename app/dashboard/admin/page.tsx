@@ -9,6 +9,7 @@ import { PageLayout } from '@/app/components/layout/page-layout';
 // Lazy load components
 const UserManagement = lazy(() => import('@/app/components/admin/user-management'));
 const AdminProjectApproval = lazy(() => import('@/app/components/src-projects/admin-project-approval'));
+const ReportsManagement = lazy(() => import('@/app/components/reports/reports-management'));
 
 interface Profile {
   id: string;
@@ -25,25 +26,28 @@ interface DashboardStats {
   activeUsers: number;
   totalDepartments: number;
   pendingSRCProjects: number;
+  totalReports: number;
 }
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'departments' | 'src-projects'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'departments' | 'src-projects' | 'reports'>('overview');
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     activeUsers: 0,
     totalDepartments: 0,
-    pendingSRCProjects: 0
+    pendingSRCProjects: 0,
+    totalReports: 0
   });
 
   const tabs = [
     { id: 'overview', name: 'Dashboard Overview', icon: '📊', shortName: 'Overview' },
     { id: 'users', name: 'User Management', icon: '👥', shortName: 'Users' },
     { id: 'departments', name: 'Department Management', icon: '🏢', shortName: 'Departments' },
-    { id: 'src-projects', name: 'SRC Projects Management', icon: '🚀', shortName: 'SRC Projects' }
+    { id: 'src-projects', name: 'SRC Projects Management', icon: '🚀', shortName: 'SRC Projects' },
+    { id: 'reports', name: 'Reports Management', icon: '📄', shortName: 'Reports' }
   ];
 
   const checkUser = useCallback(async () => {
@@ -103,11 +107,17 @@ export default function AdminDashboard() {
         .select('*', { count: 'exact', head: true })
         .eq('approval_status', 'pending');
 
+      // Fetch total reports
+      const { count: totalReports } = await supabase
+        .from('reports')
+        .select('*', { count: 'exact', head: true });
+
       setStats({
         totalUsers: totalUsers || 0,
         activeUsers: activeUsers || 0,
         totalDepartments: totalDepartments || 0,
-        pendingSRCProjects: pendingSRCProjects || 0
+        pendingSRCProjects: pendingSRCProjects || 0,
+        totalReports: totalReports || 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -255,6 +265,24 @@ export default function AdminDashboard() {
                     </div>
                     </div>
                   </div>
+
+                  <div className="bg-white overflow-hidden shadow rounded-lg">
+                    <div className="p-5">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
+                            <span className="text-white text-lg">📄</span>
+                          </div>
+                        </div>
+                        <div className="ml-5 w-0 flex-1">
+                          <dl>
+                            <dt className="text-sm font-medium text-gray-500 truncate">Total Reports</dt>
+                            <dd className="text-lg font-medium text-gray-900">{stats.totalReports}</dd>
+                          </dl>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   
                 {/* Quick Actions */}
                 <div className="bg-white shadow rounded-lg p-6">
@@ -290,6 +318,17 @@ export default function AdminDashboard() {
                       <div className="text-left">
                         <h3 className="font-medium text-gray-900">SRC Projects</h3>
                         <p className="text-sm text-gray-500">Review and approve SRC projects</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('reports')}
+                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-2xl mr-3">📄</span>
+                      <div className="text-left">
+                        <h3 className="font-medium text-gray-900">Reports</h3>
+                        <p className="text-sm text-gray-500">Upload and manage monthly reports</p>
                       </div>
                     </button>
                   </div>
@@ -331,6 +370,24 @@ export default function AdminDashboard() {
             </div>
               </Suspense>
           )}
+
+            {activeTab === 'reports' && (
+              <Suspense fallback={
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
+                  </div>
+              }>
+                <div className="space-y-6">
+                  <div className="bg-white shadow rounded-lg p-6">
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">Reports Management</h2>
+                    <p className="text-gray-600 mb-6">
+                      Upload, manage, and track monthly reports for SRC and Student dashboards.
+                    </p>
+                    <ReportsManagement userRole="admin" />
+                  </div>
+                </div>
+              </Suspense>
+            )}
           </div>
         </div>
       </PageLayout>

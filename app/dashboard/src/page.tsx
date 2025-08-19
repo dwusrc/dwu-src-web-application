@@ -7,6 +7,7 @@ import { Button } from '@/app/components/ui/button';
 import NewsManagement from '@/app/components/news/news-management';
 import ComplaintList from '@/app/components/complaints/complaint-list';
 import SrcProjectManagement from '@/app/components/src-projects/src-project-management';
+import ReportsManagement from '@/app/components/reports/reports-management';
 
 
 import { Complaint, ComplaintStatus, ComplaintPriority, SrcDepartment } from '@/types/supabase';
@@ -363,6 +364,7 @@ export default function SRCDashboard() {
                   { id: 'analytics', name: 'Analytics', icon: '📈', shortName: 'Analytics', href: '/dashboard/src/analytics' },
                   { id: 'proposals', name: 'Proposals', icon: '📋', shortName: 'Proposals' },
                   { id: 'src-projects', name: 'SRC Projects', icon: '🚀', shortName: 'Projects' },
+                  { id: 'reports', name: 'Reports', icon: '📄', shortName: 'Reports' },
                   { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
                   { id: 'communication', name: 'Communication', icon: '💬', shortName: 'Comm' },
                   { id: 'services', name: 'Student Services', icon: '👥', shortName: 'Services' },
@@ -637,6 +639,20 @@ export default function SRCDashboard() {
                 <p className="text-sm text-gray-600">Manage projects for your department</p>
               </div>
               <SrcProjectManagement userDepartment={session?.user?.user_metadata?.src_department || 'General'} />
+            </div>
+          )}
+
+          {/* Reports Tab */}
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
+                <p className="text-sm text-gray-600">View and download monthly reports</p>
+              </div>
+              <ReportsManagement 
+                userRole="src" 
+                userDepartment={session?.user?.user_metadata?.src_department} 
+              />
             </div>
           )}
 

@@ -52,24 +52,34 @@ export default function ReportsList({
       });
 
       if (!response.ok) {
-        throw new Error('Download failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Download failed: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      if (!data.file_url) {
+        throw new Error('Invalid download response');
+      }
       
       // Create download link
       const link = document.createElement('a');
       link.href = data.file_url;
       link.download = data.file_name;
+      link.target = '_blank'; // Open in new tab for better UX
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Show success message
+      setError(null); // Clear any previous errors
       
       // Refresh reports to get updated download count
       fetchReports();
     } catch (err) {
       console.error('Download error:', err);
-      setError('Failed to download report');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to download report';
+      setError(`Download failed: ${errorMessage}`);
     } finally {
       setDownloading(null);
     }

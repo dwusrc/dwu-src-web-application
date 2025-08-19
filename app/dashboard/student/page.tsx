@@ -14,6 +14,7 @@ const ComplaintForm = lazy(() => import('@/app/components/forms/complaint-form')
 const ComplaintList = lazy(() => import('@/app/components/complaints/complaint-list'));
 const ComplaintView = lazy(() => import('@/app/components/forms/complaint-view'));
 const SrcProjectList = lazy(() => import('@/app/components/src-projects/src-project-list'));
+const ReportsManagement = lazy(() => import('@/app/components/reports/reports-management'));
 
 
 // Loading component for lazy-loaded components
@@ -254,6 +255,7 @@ export default function StudentDashboard() {
     { id: 'complaints', name: 'My Complaints', shortName: 'Complaints', icon: '⚠️' },
     { id: 'proposals', name: 'My Proposals', shortName: 'Proposals', icon: '📋' },
     { id: 'src-projects', name: 'SRC Projects', shortName: 'Projects', icon: '🚀' },
+    { id: 'reports', name: 'Reports', shortName: 'Reports', icon: '📄' },
     { id: 'forums', name: 'Forums', shortName: 'Forums', icon: '📝' },
     { id: 'profile', name: 'Profile', shortName: 'Profile', icon: '👤' },
   ];
@@ -553,6 +555,18 @@ export default function StudentDashboard() {
             </div>
           )}
 
+          {/* Reports Tab */}
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
+                <p className="text-sm text-gray-600">View and download monthly reports</p>
+              </div>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ReportsManagement userRole="student" />
+              </Suspense>
+            </div>
+          )}
 
           {/* Forums Tab */}
           {activeTab === 'forums' && (
