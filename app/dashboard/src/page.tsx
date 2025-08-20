@@ -8,7 +8,7 @@ import NewsManagement from '@/app/components/news/news-management';
 import ComplaintList from '@/app/components/complaints/complaint-list';
 import SrcProjectManagement from '@/app/components/src-projects/src-project-management';
 import ReportsManagement from '@/app/components/reports/reports-management';
-import CategoryManagement from '@/app/components/reports/category-management';
+
 
 
 import { Complaint, ComplaintStatus, ComplaintPriority, SrcDepartment } from '@/types/supabase';
@@ -370,7 +370,7 @@ export default function SRCDashboard() {
                   { id: 'proposals', name: 'Proposals', icon: '📋', shortName: 'Proposals' },
                   { id: 'src-projects', name: 'SRC Projects', icon: '🚀', shortName: 'Projects' },
                   { id: 'reports', name: 'Reports', icon: '📄', shortName: 'Reports' },
-                  { id: 'categories', name: 'Categories', icon: '🏷️', shortName: 'Categories' },
+
                   { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
                   { id: 'communication', name: 'Communication', icon: '💬', shortName: 'Comm' },
                   { id: 'services', name: 'Student Services', icon: '👥', shortName: 'Services' },
@@ -665,17 +665,7 @@ export default function SRCDashboard() {
             </div>
           )}
 
-          {/* Categories Tab */}
-          {activeTab === 'categories' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Category Management</h2>
-                <p className="text-sm text-gray-600">Manage report categories and colors</p>
-              </div>
-              
-              <CategoryManagement userRole="src" />
-            </div>
-          )}
+
 
           {/* News Tab */}
           {activeTab === 'news' && (

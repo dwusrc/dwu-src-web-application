@@ -10,7 +10,7 @@ import { PageLayout } from '@/app/components/layout/page-layout';
 const UserManagement = lazy(() => import('@/app/components/admin/user-management'));
 const AdminProjectApproval = lazy(() => import('@/app/components/src-projects/admin-project-approval'));
 const ReportsManagement = lazy(() => import('@/app/components/reports/reports-management'));
-const CategoryManagement = lazy(() => import('@/app/components/reports/category-management'));
+
 
 interface Profile {
   id: string;
@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'departments' | 'src-projects' | 'reports' | 'categories'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'departments' | 'src-projects' | 'reports'>('overview');
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     activeUsers: 0,
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
     { id: 'departments', name: 'Department Management', icon: '🏢', shortName: 'Departments' },
     { id: 'src-projects', name: 'SRC Projects Management', icon: '🚀', shortName: 'SRC Projects' },
     { id: 'reports', name: 'Reports Management', icon: '📄', shortName: 'Reports' },
-    { id: 'categories', name: 'Category Management', icon: '🏷️', shortName: 'Categories' }
+
   ];
 
   const checkUser = useCallback(async () => {
@@ -334,16 +334,7 @@ export default function AdminDashboard() {
                       </div>
                     </button>
 
-                    <button
-                      onClick={() => setActiveTab('categories')}
-                      className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="text-2xl mr-3">🏷️</span>
-                      <div className="text-left">
-                        <h3 className="font-medium text-gray-900">Categories</h3>
-                        <p className="text-sm text-gray-500">Manage report categories and colors</p>
-                      </div>
-                    </button>
+
                   </div>
                 </div>
                        </div>
@@ -402,23 +393,7 @@ export default function AdminDashboard() {
               </Suspense>
                       )}
 
-            {activeTab === 'categories' && (
-              <Suspense fallback={
-                <div className="flex items-center justify-center p-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
-                  </div>
-              }>
-                <div className="space-y-6">
-                  <div className="bg-white shadow rounded-lg p-6">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Category Management</h2>
-                    <p className="text-gray-600 mb-6">
-                      Create, edit, and manage report categories with custom colors and descriptions.
-                    </p>
-                    <CategoryManagement userRole="admin" />
-                    </div>
-                        </div>
-              </Suspense>
-                      )}
+
                     </div>
         </div>
       </PageLayout>

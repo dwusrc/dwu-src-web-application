@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { Report } from '@/types/supabase';
+import { Report, ReportCategory } from '@/types/supabase';
 
 // Enhanced Report type with category information
 interface ReportWithCategory extends Report {
@@ -32,9 +32,26 @@ export default function ReportsList({
   onUploadClick 
 }: ReportsListProps) {
   const [reports, setReports] = useState<ReportWithCategory[]>([]);
+  const [categories, setCategories] = useState<ReportCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [filters, setFilters] = useState({
+    category: '',
+    visibility: '',
+    dateFrom: '',
+    dateTo: '',
+    month: '',
+    year: ''
+  });
+  
+  // Sort states
+  const [sortBy, setSortBy] = useState<'created_at' | 'title' | 'month' | 'year'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const fetchReports = useCallback(async () => {
     try {
@@ -55,9 +72,31 @@ export default function ReportsList({
     }
   }, []);
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await fetch('/api/reports/categories');
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchReports();
-  }, [fetchReports]);
+    fetchCategories();
+  }, [fetchReports, fetchCategories]);
+
+  // Debounce search query for performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleDownload = async (reportId: string) => {
     try {
@@ -112,16 +151,119 @@ export default function ReportsList({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete report');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete report');
       }
 
       // Remove from local state
       setReports(prev => prev.filter(r => r.id !== reportId));
+      setError(null);
     } catch (err) {
       console.error('Delete error:', err);
-      setError('Failed to delete report');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete report';
+      setError(`Delete failed: ${errorMessage}`);
     }
   };
+
+  // Enhanced filtering with search
+  const filteredReports = useMemo(() => {
+    return reports.filter(report => {
+      // Search query filtering
+      if (debouncedSearchQuery) {
+        const searchLower = debouncedSearchQuery.toLowerCase();
+        const titleMatch = report.title.toLowerCase().includes(searchLower);
+        const descriptionMatch = report.description?.toLowerCase().includes(searchLower) || false;
+        const fileNameMatch = report.file_name.toLowerCase().includes(searchLower);
+        const categoryMatch = report.category?.name.toLowerCase().includes(searchLower) || false;
+        const uploaderMatch = report.uploaded_by_user?.full_name.toLowerCase().includes(searchLower) || false;
+        
+        if (!titleMatch && !descriptionMatch && !fileNameMatch && !categoryMatch && !uploaderMatch) {
+          return false;
+        }
+      }
+
+      // Category filter
+      if (filters.category && report.category?.id !== filters.category) return false;
+      
+      // Visibility filter
+      if (filters.visibility && report.visibility && !report.visibility.includes(filters.visibility)) return false;
+      
+      // Month filter
+      if (filters.month && report.month !== parseInt(filters.month)) return false;
+      
+      // Year filter
+      if (filters.year && report.year !== parseInt(filters.year)) return false;
+      
+      // Date range filters
+      if (filters.dateFrom) {
+        const reportDate = new Date(report.created_at);
+        const fromDate = new Date(filters.dateFrom);
+        if (reportDate < fromDate) return false;
+      }
+      if (filters.dateTo) {
+        const reportDate = new Date(report.created_at);
+        const toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        if (reportDate > toDate) return false;
+      }
+      
+      return true;
+    });
+  }, [reports, filters, debouncedSearchQuery]);
+
+  // Sort filtered reports
+  const sortedReports = useMemo(() => {
+    return [...filteredReports].sort((a, b) => {
+      let aValue: string | number | Date, bValue: string | number | Date;
+      
+      switch (sortBy) {
+        case 'title':
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+          break;
+        case 'month':
+          aValue = a.month;
+          bValue = b.month;
+          break;
+        case 'year':
+          aValue = a.year;
+          bValue = b.year;
+          break;
+        case 'created_at':
+        default:
+          aValue = new Date(a.created_at);
+          bValue = new Date(b.created_at);
+          break;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+  }, [filteredReports, sortBy, sortOrder]);
+
+  const handleSort = useCallback((field: 'created_at' | 'title' | 'month' | 'year') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  }, [sortBy, sortOrder]);
+
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilters({
+      category: '',
+      visibility: '',
+      dateFrom: '',
+      dateTo: '',
+      month: '',
+      year: ''
+    });
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -136,18 +278,7 @@ export default function ReportsList({
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
-    return months[month - 1] || '';
-  };
-
-  const getVisibilityBadge = (visibility: string[]) => {
-    if (visibility.includes('src') && visibility.includes('student')) {
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">All Dashboards</span>;
-    } else if (visibility.includes('src')) {
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">SRC Only</span>;
-    } else if (visibility.includes('student')) {
-      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Student Only</span>;
-    }
-    return null;
+    return months[month - 1] || 'Unknown';
   };
 
   if (loading) {
@@ -158,143 +289,279 @@ export default function ReportsList({
     );
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-600 mb-4">{error}</p>
-        <Button onClick={fetchReports} variant="outline">
-          Try Again
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header with Upload Button */}
-      {showUploadButton && onUploadClick && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
-            <p className="text-gray-600">Manage and view monthly reports</p>
-          </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
+          <p className="text-gray-600">View and manage monthly reports</p>
+        </div>
+        {showUploadButton && (
           <Button
             onClick={onUploadClick}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            Upload New Report
+            📄 Upload Report
+          </Button>
+        )}
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* Filters Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters & Search</h3>
+        
+        {/* Search Bar */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search reports by title, description, filename, category, or uploader..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        {/* Filter Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Categories</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Visibility Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Visibility</label>
+            <select
+              value={filters.visibility}
+              onChange={(e) => setFilters(prev => ({ ...prev, visibility: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Visibility</option>
+              <option value="src">SRC Only</option>
+              <option value="student">Student Only</option>
+              <option value="admin">Admin Only</option>
+            </select>
+          </div>
+
+          {/* Month Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
+            <select
+              value={filters.month}
+              onChange={(e) => setFilters(prev => ({ ...prev, month: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Months</option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                <option key={month} value={month}>
+                  {getMonthName(month)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Year Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+            <select
+              value={filters.year}
+              onChange={(e) => setFilters(prev => ({ ...prev, year: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Years</option>
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date From */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Date To */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Filter Actions */}
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-gray-600">
+            {debouncedSearchQuery 
+              ? `Found ${filteredReports.length} reports matching "${debouncedSearchQuery}"`
+              : `Showing ${filteredReports.length} of ${reports.length} reports`
+            }
+          </div>
+          <Button
+            onClick={clearFilters}
+            variant="outline"
+            className="text-gray-600 hover:text-gray-800"
+          >
+            Clear Filters
           </Button>
         </div>
-      )}
+      </div>
 
       {/* Reports List */}
-      {reports.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">📄</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No reports found</h3>
-          <p className="text-gray-600">
-            {showUploadButton 
-              ? 'Get started by uploading your first report.' 
-              : 'No reports are currently available for your role.'
-            }
-          </p>
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">Reports</h3>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>Sort by:</span>
+              <button
+                onClick={() => handleSort('title')}
+                className={`px-2 py-1 rounded ${
+                  sortBy === 'title' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                }`}
+              >
+                Title
+              </button>
+              <button
+                onClick={() => handleSort('created_at')}
+                className={`px-2 py-1 rounded ${
+                  sortBy === 'created_at' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                }`}
+              >
+                Date
+              </button>
+              <button
+                onClick={() => handleSort('month')}
+                className={`px-2 py-1 rounded ${
+                  sortBy === 'month' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                }`}
+              >
+                Month
+              </button>
+              <button
+                onClick={() => handleSort('year')}
+                className={`px-2 py-1 rounded ${
+                  sortBy === 'year' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
+                }`}
+              >
+                Year
+              </button>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {reports.map((report) => (
-            <div
-              key={report.id}
-              className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                {/* Report Info */}
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-                      {report.title}
-                    </h3>
-                    {getVisibilityBadge(report.visibility)}
-                  </div>
-                  
-                  {/* Category Badge */}
-                  {report.category && (
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                        style={{ 
-                          backgroundColor: `${report.category.color}20`, 
-                          color: report.category.color,
-                          border: `1px solid ${report.category.color}40`
-                        }}
-                      >
-                        {report.category.name}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {report.description && (
-                    <p className="text-gray-600 text-sm line-clamp-2">
-                      {report.description}
-                    </p>
-                  )}
-                  
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                    <span className="flex items-center">
-                      <span className="mr-1">📅</span>
-                      {getMonthName(report.month)} {report.year}
-                    </span>
-                    <span className="flex items-center">
-                      <span className="mr-1">📊</span>
-                      {report.download_count || 0} downloads
-                    </span>
-                    {report.file_size && (
-                      <span className="flex items-center">
-                        <span className="mr-1">💾</span>
-                        {formatFileSize(report.file_size)}
-                      </span>
-                    )}
-                  </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                  <Button
-                    onClick={() => handleDownload(report.id)}
-                    disabled={downloading === report.id}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    size="sm"
-                  >
-                    {downloading === report.id ? (
-                      <span className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Downloading...
-                      </span>
-                    ) : (
-                      <span className="flex items-center">
-                        <span className="mr-1">⬇️</span>
-                        Download
-                      </span>
+        {sortedReports.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">📄</div>
+            <p className="text-gray-600">
+              {filteredReports.length === 0 && reports.length > 0 
+                ? 'No reports match your current filters. Try adjusting your search criteria.'
+                : 'No reports found. Upload your first report to get started.'
+              }
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {sortedReports.map((report) => (
+              <div key={report.id} className="p-6 hover:bg-gray-50">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="text-lg font-medium text-gray-900">{report.title}</h4>
+                      {report.category && (
+                        <span
+                          className="px-2 py-1 text-xs font-medium rounded-full text-white"
+                          style={{ backgroundColor: report.category.color }}
+                        >
+                          {report.category.name}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {report.description && (
+                      <p className="text-gray-600 mb-3">{report.description}</p>
                     )}
-                  </Button>
+                    
+                    <div className="flex items-center gap-6 text-sm text-gray-500">
+                      <span>📅 {getMonthName(report.month)} {report.year}</span>
+                      <span>📁 {report.file_name}</span>
+                                             <span>💾 {report.file_size ? formatFileSize(report.file_size) : 'Unknown size'}</span>
+                      <span>⬇️ {report.download_count || 0} downloads</span>
+                      {report.uploaded_by_user && (
+                        <span>👤 {report.uploaded_by_user.full_name}</span>
+                      )}
+                      <div className="flex gap-1">
+                        {report.visibility?.map(vis => (
+                          <span
+                            key={vis}
+                            className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded"
+                          >
+                            {vis}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                   
-                  {/* Delete button - only for admin and SRC president */}
-                  {(userRole === 'admin' || (userRole === 'src' && report.uploaded_by === 'President')) && (
+                  <div className="flex items-center gap-2 ml-4">
                     <Button
-                      onClick={() => handleDelete(report.id)}
+                      onClick={() => handleDownload(report.id)}
+                      disabled={downloading === report.id}
                       variant="outline"
-                      className="border-red-300 text-red-600 hover:bg-red-50"
                       size="sm"
+                      className="border-blue-300 text-blue-600 hover:bg-blue-50"
                     >
-                      <span className="mr-1">🗑️</span>
-                      Delete
+                      {downloading === report.id ? 'Downloading...' : 'Download'}
                     </Button>
-                  )}
+                    
+                    {(userRole === 'admin' || (userRole === 'src' && report.uploaded_by_user?.src_department === 'President')) && (
+                      <Button
+                        onClick={() => handleDelete(report.id)}
+                        variant="outline"
+                        size="sm"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
