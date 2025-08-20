@@ -27,7 +27,8 @@ export async function GET() {
       .from('reports')
       .select(`
         *,
-        uploaded_by_user:profiles!reports_uploaded_by_fkey(id, full_name, role, src_department)
+        uploaded_by_user:profiles!reports_uploaded_by_fkey(id, full_name, role, src_department),
+        category:report_categories(id, name, color, description)
       `)
       .order('year', { ascending: false })
       .order('month', { ascending: false })
@@ -91,7 +92,8 @@ export async function POST(request: NextRequest) {
       file_size,
       month,
       year,
-      visibility
+      visibility,
+      category_id
     } = await request.json();
 
     // Validate required fields
@@ -130,11 +132,13 @@ export async function POST(request: NextRequest) {
         month,
         year,
         visibility,
+        category_id: category_id || null,
         uploaded_by: user.id
       })
       .select(`
         *,
-        uploaded_by_user:profiles!reports_uploaded_by_fkey(id, full_name, role, src_department)
+        uploaded_by_user:profiles!reports_uploaded_by_fkey(id, full_name, role, src_department),
+        category:report_categories(id, name, color, description)
       `)
       .single();
 

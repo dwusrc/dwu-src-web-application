@@ -654,16 +654,7 @@ export default function SRCDashboard() {
                 <p className="text-sm text-gray-600">View and download monthly reports</p>
               </div>
               
-              {/* Debug Info - Remove after testing */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-                <p className="text-blue-800">
-                  <strong>Debug Info:</strong><br/>
-                  User Role: src<br/>
-                  User Department: {profile?.src_department || 'Loading...'}<br/>
-                  Can Upload: {profile?.src_department === 'President' ? 'Yes' : 'No'}<br/>
-                  Profile Loaded: {profile ? 'Yes' : 'No'}
-                </p>
-              </div>
+
               
               <ReportsManagement 
                 userRole="src" 

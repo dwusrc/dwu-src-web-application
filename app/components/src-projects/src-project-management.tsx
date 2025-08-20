@@ -478,54 +478,54 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
                 <span className="text-green-600 mr-2">✅</span>
                 Approved Projects ({projectSummary.approved})
               </h3>
-              <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul className="divide-y divide-gray-200">
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <ul className="divide-y divide-gray-200">
                   {projects
                     .filter(project => project.approval_status === 'approved')
                     .map((project) => (
-                      <li key={project.id}>
-                        <div className="px-4 py-4 sm:px-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm font-medium text-[#359d49] truncate">
-                                  {project.title}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                                    {getStatusLabel(project.status)}
-                                  </span>
+              <li key={project.id}>
+                <div className="px-4 py-4 sm:px-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-[#359d49] truncate">
+                          {project.title}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                            {getStatusLabel(project.status)}
+                          </span>
                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
                                     {getApprovalStatusLabel(project.approval_status)}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              <p className="mt-1 text-sm text-gray-600 line-clamp-2">
-                                {project.description}
-                              </p>
-                              
-                              <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                                <span>Progress: {project.progress_percentage}%</span>
-                                {project.start_date && (
-                                  <span>Started: {formatDate(project.start_date)}</span>
-                                )}
-                                {project.target_finish_date && (
-                                  <span>Target: {formatDate(project.target_finish_date)}</span>
-                                )}
-                                {project.budget_allocated && (
-                                  <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 ml-4">
-                              <button
-                                onClick={() => setEditingProject(project)}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                              >
-                                Edit
-                              </button>
+                            </span>
+                        </div>
+                      </div>
+                      
+                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                        {project.description}
+                      </p>
+                      
+                      <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                        <span>Progress: {project.progress_percentage}%</span>
+                        {project.start_date && (
+                          <span>Started: {formatDate(project.start_date)}</span>
+                        )}
+                        {project.target_finish_date && (
+                          <span>Target: {formatDate(project.target_finish_date)}</span>
+                        )}
+                        {project.budget_allocated && (
+                          <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => setEditingProject(project)}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
                               <button
                                 onClick={() => handleDeleteProject(project.id)}
                                 className="text-red-600 hover:text-red-800 text-sm font-medium"
@@ -597,18 +597,18 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
                             </div>
                             
                             <div className="flex items-center gap-2 ml-4">
-                              <button
-                                onClick={() => handleDeleteProject(project.id)}
-                                className="text-red-600 hover:text-red-800 text-sm font-medium"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                </ul>
+                      <button
+                        onClick={() => handleDeleteProject(project.id)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
               </div>
             </div>
           )}

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { ReportFormData } from '@/types/supabase';
+import { ReportFormData, ReportCategory } from '@/types/supabase';
 
 interface ReportUploadFormProps {
   onSubmit: (data: ReportFormData, file: File) => Promise<void>;
@@ -30,6 +30,27 @@ export default function ReportUploadForm({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<ReportCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Fetch report categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/reports/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
@@ -52,6 +73,10 @@ export default function ReportUploadForm({
       newErrors.visibility = 'Please select at least one visibility option';
     }
 
+    if (!formData.category_id) {
+      newErrors.category_id = 'Please select a category';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [formData, selectedFile]);
@@ -71,7 +96,8 @@ export default function ReportUploadForm({
         description: '',
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
-        visibility: ['src', 'student']
+        visibility: ['src', 'student'],
+        category_id: ''
       });
       setSelectedFile(null);
       setErrors({});
@@ -187,6 +213,38 @@ export default function ReportUploadForm({
             className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             placeholder="Enter report description (optional)"
           />
+        </div>
+
+        {/* Category Selection */}
+        <div>
+          <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+            Category *
+          </label>
+          {loadingCategories ? (
+            <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
+              <p className="text-sm text-gray-500">Loading categories...</p>
+            </div>
+          ) : (
+            <select
+              id="category"
+              value={formData.category_id}
+              onChange={(e) => handleInputChange('category_id', e.target.value)}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                errors.category_id ? 'border-red-500' : 'border-gray-300'
+              }`}
+              required
+            >
+              <option value="">Select a category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {errors.category_id && (
+            <p className="mt-1 text-sm text-red-600">{errors.category_id}</p>
+          )}
         </div>
 
         {/* Auto-Date Info */}

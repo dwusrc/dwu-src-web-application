@@ -4,6 +4,22 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Report } from '@/types/supabase';
 
+// Enhanced Report type with category information
+interface ReportWithCategory extends Report {
+  category?: {
+    id: string;
+    name: string;
+    color: string;
+    description?: string;
+  };
+  uploaded_by_user?: {
+    id: string;
+    full_name: string;
+    role: string;
+    src_department?: string;
+  };
+}
+
 interface ReportsListProps {
   userRole: 'student' | 'src' | 'admin';
   showUploadButton?: boolean;
@@ -15,7 +31,7 @@ export default function ReportsList({
   showUploadButton = false, 
   onUploadClick 
 }: ReportsListProps) {
-  const [reports, setReports] = useState<Report[]>([]);
+  const [reports, setReports] = useState<ReportWithCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -199,6 +215,22 @@ export default function ReportsList({
                     </h3>
                     {getVisibilityBadge(report.visibility)}
                   </div>
+                  
+                  {/* Category Badge */}
+                  {report.category && (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        style={{ 
+                          backgroundColor: `${report.category.color}20`, 
+                          color: report.category.color,
+                          border: `1px solid ${report.category.color}40`
+                        }}
+                      >
+                        {report.category.name}
+                      </span>
+                    </div>
+                  )}
                   
                   {report.description && (
                     <p className="text-gray-600 text-sm line-clamp-2">
