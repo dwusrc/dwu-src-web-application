@@ -23,4 +23,5 @@ export { default as FeaturedNews } from './news/featured-news';
 // Reports Components
 export { default as ReportsManagement } from './reports/reports-management';
 export { default as ReportsList } from './reports/reports-list';
-export { default as ReportUploadForm } from './reports/report-upload-form'; 
+export { default as ReportUploadForm } from './reports/report-upload-form';
+export { default as CategoryManagement } from './reports/category-management'; 
