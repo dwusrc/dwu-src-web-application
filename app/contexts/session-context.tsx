@@ -160,9 +160,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     // Get initial session
     const getInitialSession = async () => {
       try {
-        console.log('Getting initial session...');
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('Initial session result:', session?.user?.id);
         
         if (!mounted) return;
         
@@ -170,10 +168,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          console.log('Initial user found, fetching profile...');
           const profileData = await fetchProfile(session.user.id);
           if (mounted) {
-            console.log('Initial profile set:', profileData);
             setProfile(profileData);
           }
         }
@@ -191,8 +187,6 @@ export function SessionProvider({ children }: SessionProviderProps) {
     try {
       authSubscription = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          console.log('Auth state change:', event, session?.user?.id);
-          
           if (!mounted) return;
           
           try {
@@ -200,14 +194,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
             setUser(session?.user ?? null);
 
             if (session?.user) {
-              console.log('Setting user in context:', session.user.id);
               const profileData = await fetchProfile(session.user.id);
               if (mounted) {
-                console.log('Setting profile in context:', profileData);
                 setProfile(profileData);
               }
             } else {
-              console.log('Clearing user and profile from context');
               if (mounted) {
                 setProfile(null);
               }
@@ -267,7 +258,7 @@ export function useSession() {
 export function useIsAuthenticated() {
   const { user, loading } = useSession();
   const isAuthenticated = !!user;
-  console.log('useIsAuthenticated hook:', { user: user?.id, loading, isAuthenticated });
+  // Only log when values change to reduce spam
   return { isAuthenticated, loading };
 }
 

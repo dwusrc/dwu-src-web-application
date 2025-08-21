@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageLayout } from "../components";
+import { useSession } from "../contexts/session-context";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
@@ -11,6 +12,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  const { profile, loading: sessionLoading } = useSession();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,6 +25,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     setSuccess(false);
+    setShouldRedirect(false);
     
     try {
       // First, try to sign in directly with Supabase client
@@ -37,6 +41,7 @@ export default function LoginPage() {
 
       if (data.user && data.session) {
         setSuccess(true);
+        setShouldRedirect(true);
         
         // Get user profile to determine role
         const { data: profile, error: profileError } = await supabase
@@ -51,20 +56,13 @@ export default function LoginPage() {
           return;
         }
 
-        console.log('Login successful:', { user: data.user, profile });
-        
-        // Determine redirect URL based on user role
+        // Store the redirect URL in sessionStorage for the redirect effect
         let redirectUrl = "/dashboard";
         if (profile.role === "student") redirectUrl = "/dashboard/student";
         else if (profile.role === "src") redirectUrl = "/dashboard/src";
         else if (profile.role === "admin") redirectUrl = "/dashboard/admin";
+        sessionStorage.setItem('loginRedirectUrl', redirectUrl);
         
-        console.log('Redirecting to:', redirectUrl);
-        
-        // Show success message briefly, then redirect
-        setTimeout(() => {
-          router.push(redirectUrl);
-        }, 1000);
       } else {
         setError("Login failed. No user data received.");
       }
@@ -75,6 +73,19 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // Effect to handle redirect after session is ready
+  useEffect(() => {
+    if (shouldRedirect && !sessionLoading && profile) {
+      const redirectUrl = sessionStorage.getItem('loginRedirectUrl') || '/dashboard';
+      sessionStorage.removeItem('loginRedirectUrl'); // Clean up
+      
+      // Small delay to ensure UI updates are complete
+      setTimeout(() => {
+        router.push(redirectUrl);
+      }, 500);
+    }
+  }, [shouldRedirect, sessionLoading, profile, router]);
 
   return (
     <PageLayout>
@@ -109,13 +120,13 @@ export default function LoginPage() {
                   required
                   value={form.password}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-lg border border-[#2a6b39]/30 bg-[#ddc753]/10 px-3 py-2 shadow-sm focus:border-[#359d49]/30 text-gray-900"
+                  className="mt-1 block w-full rounded-lg border border-[#2a6b39]/30 bg-[#ddc753]/10 px-3 py-2 shadow-sm focus:border-[#359d49] focus:ring-2 focus:ring-[#359d49]/30 text-gray-900"
                 />
               </div>
               {error && <div className="text-red-600 text-sm font-medium">{error}</div>}
               {success && (
                 <div className="text-green-600 text-sm font-medium">
-                  Login successful! Redirecting to dashboard...
+                  {sessionLoading ? "Setting up your session..." : "Login successful! Redirecting to dashboard..."}
                 </div>
               )}
               <button

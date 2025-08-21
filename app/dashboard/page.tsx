@@ -33,8 +33,12 @@ export default function DashboardRedirectPage() {
     <div className="flex h-screen items-center justify-center bg-gray-100">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-[#359d49]"></div>
-        <h2 className="mt-4 text-xl font-semibold text-gray-700">Loading your dashboard...</h2>
-        <p className="text-gray-500">Please wait a moment.</p>
+        <h2 className="mt-4 text-xl font-semibold text-gray-700">
+          {loading ? 'Loading your session...' : 'Redirecting to your dashboard...'}
+        </h2>
+        <p className="text-gray-500">
+          {loading ? 'Please wait while we verify your authentication.' : 'Please wait a moment.'}
+        </p>
       </div>
     </div>
   );
