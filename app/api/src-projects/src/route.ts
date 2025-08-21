@@ -33,18 +33,25 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Get department ID from user's src_department
-    const { data: department } = await supabase
-      .from('src_departments')
-      .select('id')
-      .eq('name', profile.src_department)
-      .single();
+    // Check if user is SRC President (special case for approval access)
+    const isSRCPresident = profile.src_department === 'President';
+    
+    // Get department ID from user's src_department (only needed for non-President SRC members)
+    let departmentId: string | null = null;
+    if (!isSRCPresident) {
+      const { data: department } = await supabase
+        .from('src_departments')
+        .select('id')
+        .eq('name', profile.src_department)
+        .single();
 
-    if (!department) {
-      return NextResponse.json({ error: 'Department not found' }, { status: 404 });
+      if (!department) {
+        return NextResponse.json({ error: 'Department not found' }, { status: 404 });
+      }
+      departmentId = department.id;
     }
 
-    // Build query for SRC view (all projects from their department)
+    // Build query for SRC view
     let query = supabase
       .from('src_projects')
       .select(`
@@ -53,8 +60,12 @@ export async function GET(request: NextRequest) {
         created_by_user:profiles!src_projects_created_by_fkey(id, full_name, role),
         approved_by_user:profiles!src_projects_approved_by_fkey(id, full_name, role)
       `, { count: 'exact' })
-      .eq('department_id', department.id)
       .order('created_at', { ascending: false });
+
+    // If not SRC President, filter by department
+    if (!isSRCPresident && departmentId) {
+      query = query.eq('department_id', departmentId);
+    }
 
     // Apply filters
     if (status) {
@@ -74,23 +85,54 @@ export async function GET(request: NextRequest) {
     }
 
     // Get counts for different approval statuses
-    const { count: pendingCount } = await supabase
-      .from('src_projects')
-      .select('*', { count: 'exact', head: true })
-      .eq('department_id', department.id)
-      .eq('approval_status', 'pending');
+    let pendingCount = 0;
+    let approvedCount = 0;
+    let rejectedCount = 0;
 
-    const { count: approvedCount } = await supabase
-      .from('src_projects')
-      .select('*', { count: 'exact', head: true })
-      .eq('department_id', department.id)
-      .eq('approval_status', 'approved');
+    if (isSRCPresident) {
+      // SRC President sees counts for all projects
+      const { count: pending } = await supabase
+        .from('src_projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('approval_status', 'pending');
+      
+      const { count: approved } = await supabase
+        .from('src_projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('approval_status', 'approved');
+      
+      const { count: rejected } = await supabase
+        .from('src_projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('approval_status', 'rejected');
 
-    const { count: rejectedCount } = await supabase
-      .from('src_projects')
-      .select('*', { count: 'exact', head: true })
-      .eq('department_id', department.id)
-      .eq('approval_status', 'rejected');
+      pendingCount = pending || 0;
+      approvedCount = approved || 0;
+      rejectedCount = rejected || 0;
+    } else if (departmentId) {
+      // Regular SRC members see counts for their department only
+      const { count: pending } = await supabase
+        .from('src_projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', departmentId)
+        .eq('approval_status', 'pending');
+      
+      const { count: approved } = await supabase
+        .from('src_projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', departmentId)
+        .eq('approval_status', 'approved');
+      
+      const { count: rejected } = await supabase
+        .from('src_projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', departmentId)
+        .eq('approval_status', 'rejected');
+
+      pendingCount = pending || 0;
+      approvedCount = approved || 0;
+      rejectedCount = rejected || 0;
+    }
 
     return NextResponse.json({
       projects: projects || [],

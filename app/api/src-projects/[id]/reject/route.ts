@@ -17,7 +17,7 @@ export async function PUT(
     // Get user profile for role-based access
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, src_department')
       .eq('id', user.id)
       .single();
 
@@ -25,9 +25,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Only Admin can reject projects
-    if (profile.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    // Only Admin or SRC President can reject projects
+    if (profile.role !== 'admin' && !(profile.role === 'src' && profile.src_department === 'President')) {
+      return NextResponse.json({ error: 'Admin or SRC President access required' }, { status: 403 });
     }
 
     const body = await request.json();

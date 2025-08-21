@@ -31,6 +31,8 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
     total: 0
   });
 
+
+
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
@@ -43,6 +45,7 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
       }
 
       const response = await fetch(url);
+      
       if (response.ok) {
         const data = await response.json();
         setProjects(data.projects || []);
@@ -146,6 +149,62 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
     } catch (error) {
       console.error('Error deleting project:', error);
       alert('Failed to delete project. Please try again.');
+    }
+  };
+
+  const handleApproveProject = async (projectId: string) => {
+    if (!confirm('Are you sure you want to approve this project?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/src-projects/${projectId}/approve`, {
+        method: 'PUT',
+      });
+
+      if (response.ok) {
+        alert('Project approved successfully!');
+        fetchProjects(); // Refresh the list
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to approve project: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error approving project:', error);
+      alert('Failed to approve project. Please try again.');
+    }
+  };
+
+  const handleRejectProject = async (projectId: string) => {
+    const rejectionReason = prompt('Please provide a reason for rejection:');
+    if (!rejectionReason || rejectionReason.trim().length === 0) {
+      alert('Rejection reason is required');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to reject this project?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/src-projects/${projectId}/reject`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ rejection_reason: rejectionReason }),
+      });
+
+      if (response.ok) {
+        alert('Project rejected successfully!');
+        fetchProjects(); // Refresh the list
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to reject project: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error rejecting project:', error);
+      alert('Failed to reject project. Please try again.');
     }
   };
 
@@ -454,14 +513,30 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-2 ml-4">
-                              <button
-                                onClick={() => handleDeleteProject(project.id)}
-                                className="text-red-600 hover:text-red-800 text-sm font-medium"
-                              >
-                                Delete
-                              </button>
-                            </div>
+                                                         <div className="flex items-center gap-2 ml-4">
+                               {userDepartment === 'President' && (
+                                 <>
+                                   <button
+                                     onClick={() => handleApproveProject(project.id)}
+                                     className="text-green-600 hover:text-green-800 text-sm font-medium"
+                                   >
+                                     Approve
+                                   </button>
+                                   <button
+                                     onClick={() => handleRejectProject(project.id)}
+                                     className="text-orange-600 hover:text-orange-800 text-sm font-medium"
+                                   >
+                                     Reject
+                                   </button>
+                                 </>
+                               )}
+                               <button
+                                 onClick={() => handleDeleteProject(project.id)}
+                                 className="text-red-600 hover:text-red-800 text-sm font-medium"
+                               >
+                                 Delete
+                               </button>
+                             </div>
                           </div>
                         </div>
                       </li>

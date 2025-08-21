@@ -55,7 +55,7 @@ interface Proposal {
 
 
 export default function SRCDashboard() {
-  const { session, profile } = useSession();
+  const { profile } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -644,7 +644,7 @@ export default function SRCDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">SRC Project Management</h2>
                 <p className="text-sm text-gray-600">Manage projects for your department</p>
               </div>
-              <SrcProjectManagement userDepartment={session?.user?.user_metadata?.src_department || 'General'} />
+              <SrcProjectManagement userDepartment={profile?.src_department || 'General'} />
             </div>
           )}
 
