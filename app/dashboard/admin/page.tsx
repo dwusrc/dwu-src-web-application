@@ -8,6 +8,7 @@ import { PageLayout } from '@/app/components/layout/page-layout';
 
 // Lazy load components
 const UserManagement = lazy(() => import('@/app/components/admin/user-management'));
+const DepartmentManagement = lazy(() => import('@/app/components/admin/department-management'));
 const AdminProjectApproval = lazy(() => import('@/app/components/src-projects/admin-project-approval'));
 const ReportsManagement = lazy(() => import('@/app/components/reports/reports-management'));
 
@@ -351,10 +352,13 @@ export default function AdminDashboard() {
             )}
 
             {activeTab === 'departments' && (
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Department Management</h2>
-                <p className="text-gray-600">Department management features coming soon...</p>
-                    </div>
+              <Suspense fallback={
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
+                </div>
+              }>
+                <DepartmentManagement />
+              </Suspense>
             )}
 
             {activeTab === 'src-projects' && (

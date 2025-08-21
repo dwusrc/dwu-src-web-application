@@ -1364,4 +1364,74 @@ ORDER BY ordinal_position;
 -- capabilities for user accounts while maintaining security and data integrity.
 -- 
 -- ============================================================================
+-- 
+-- ============================================================================
+-- ADMIN SRC DEPARTMENT MANAGEMENT - ✅ IMPLEMENTED
+-- ============================================================================
+-- 
+-- NEW FEATURE: Admin can now manage SRC departments directly from the dashboard
+-- 
+-- 1. ✅ Department Management API Endpoints:
+--    - GET /api/admin/departments - Fetch all departments (admin only)
+--    - POST /api/admin/departments - Create new department (admin only)
+--    - PUT /api/admin/departments - Update existing department (admin only)
+--    - DELETE /api/admin/departments?id={id} - Soft delete department (admin only)
+--    - GET /api/admin/departments/{id}/users - Fetch users assigned to department (admin only)
+-- 
+-- 2. ✅ Department Management Features:
+--    - Create new SRC departments with name, description, and color
+--    - Edit existing department details (name, description, color)
+--    - Toggle department active/inactive status
+--    - Soft delete departments (prevents deletion if assigned to SRC members)
+--    - Color picker for department branding
+--    - Validation to prevent duplicate department names
+-- 
+-- 3. ✅ Security & Validation:
+--    - Admin-only access control
+--    - Duplicate name prevention
+--    - Safe deletion (checks if department is in use)
+--    - Input validation for required fields
+--    - Color format validation
+-- 
+-- 4. ✅ User Experience:
+--    - Modal-based forms for create/edit operations
+--    - Color picker with hex input support
+--    - Real-time status updates
+--    - Confirmation dialogs for destructive actions
+--    - Responsive design matching existing UI patterns
+-- 
+-- 5. ✅ Database Integration:
+--    - Uses src_departments table
+--    - Soft delete implementation (is_active flag)
+--    - Maintains referential integrity
+--    - Integrates with existing user management
+-- 
+-- 6. ✅ Frontend Implementation:
+--    - DepartmentManagement component in admin dashboard
+--    - CreateDepartmentForm and EditDepartmentForm subcomponents
+--    - Enhanced warning system with user details modal
+--    - Visual user count indicators and status badges
+--    - Integrated with existing admin dashboard tabs
+--    - Consistent styling with brand colors
+-- 
+-- 7. ✅ Business Logic:
+--    - Prevents deletion of departments with assigned SRC members
+--    - Enhanced warning system with detailed user information
+--    - Visual indicators for departments with assigned users
+--    - Maintains department color consistency across the system
+--    - Supports department status management
+--    - Handles edge cases gracefully
+-- 
+-- This feature provides complete administrative control over SRC departments,
+-- allowing admins to customize the organizational structure while maintaining
+-- data integrity and preventing orphaned user assignments. The enhanced warning
+-- system ensures admins have full visibility into the impact of their actions
+-- before proceeding with department deletions.
+--
+-- IMPORTANT FIX: Corrected the user count display issue by fixing the relationship
+-- between src_departments.id and profiles.src_department (which stores department name,
+-- not ID). Added dedicated API endpoint for fetching department users and proper
+-- data mapping to ensure accurate user counts and department assignment tracking.
+-- 
+-- ============================================================================
 
