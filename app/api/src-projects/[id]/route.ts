@@ -50,8 +50,8 @@ export async function GET(
         return NextResponse.json({ error: 'Project not found' }, { status: 404 });
       }
     } else if (profile.role === 'src') {
-      // SRC members can view projects from their department
-      if (project.department?.name !== profile.src_department) {
+      // SRC President can view all projects, regular SRC members only their department
+      if (profile.src_department !== 'President' && project.department?.name !== profile.src_department) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
       }
     }
@@ -102,30 +102,42 @@ export async function PUT(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    // Get request body first
+    const body = await request.json();
+
     // Check permissions
     if (profile.role === 'src') {
-      // SRC members can only update approved projects from their department
-      if (existingProject.approval_status !== 'approved') {
-        return NextResponse.json({ 
-          error: 'Can only update approved projects' 
-        }, { status: 403 });
-      }
+      // SRC President can update any project, regular SRC members only their department
+      if (profile.src_department === 'President') {
+        // SRC President can update any project (for approval status changes)
+        // But regular updates still require approval
+        if (existingProject.approval_status !== 'approved' && !body.approval_status) {
+          return NextResponse.json({ 
+            error: 'Can only update approved projects' 
+          }, { status: 403 });
+        }
+      } else {
+        // Regular SRC members can only update approved projects from their department
+        if (existingProject.approval_status !== 'approved') {
+          return NextResponse.json({ 
+            error: 'Can only update approved projects' 
+          }, { status: 403 });
+        }
 
-      // Check if project belongs to their department
-      const { data: department } = await supabase
-        .from('src_departments')
-        .select('name')
-        .eq('id', existingProject.department_id)
-        .single();
+        // Check if project belongs to their department
+        const { data: department } = await supabase
+          .from('src_departments')
+          .select('name')
+          .eq('id', existingProject.department_id)
+          .single();
 
-      if (department?.name !== profile.src_department) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        if (department?.name !== profile.src_department) {
+          return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        }
       }
     } else if (profile.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
-
-    const body = await request.json();
     const {
       title,
       description,
@@ -229,15 +241,20 @@ export async function DELETE(
 
     // Check permissions
     if (profile.role === 'src') {
-      // SRC members can only delete projects from their department
-      const { data: department } = await supabase
-        .from('src_departments')
-        .select('name')
-        .eq('id', existingProject.department_id)
-        .single();
+      // SRC President can delete any project, regular SRC members only their department
+      if (profile.src_department === 'President') {
+        // SRC President can delete any project
+      } else {
+        // Regular SRC members can only delete projects from their department
+        const { data: department } = await supabase
+          .from('src_departments')
+          .select('name')
+          .eq('id', existingProject.department_id)
+          .single();
 
-      if (department?.name !== profile.src_department) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        if (department?.name !== profile.src_department) {
+          return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        }
       }
     } else if (profile.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
