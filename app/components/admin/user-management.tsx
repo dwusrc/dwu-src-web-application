@@ -19,12 +19,30 @@ interface Department {
   description: string;
 }
 
+interface CreateUserFormProps {
+  departments: Department[];
+  onSubmit: (formData: {
+    full_name: string;
+    email: string;
+    password: string;
+    role: 'student' | 'src' | 'admin';
+    student_id?: string;
+    department?: string;
+    year_level?: number;
+    phone?: string;
+    src_department?: string;
+  }) => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+}
+
 export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -151,6 +169,45 @@ export default function UserManagement() {
     }
   };
 
+  const handleCreateUser = async (formData: {
+    full_name: string;
+    email: string;
+    password: string;
+    role: 'student' | 'src' | 'admin';
+    student_id?: string;
+    department?: string;
+    year_level?: number;
+    phone?: string;
+    src_department?: string;
+  }) => {
+    try {
+      setIsSubmitting(true);
+
+      const response = await fetch('/api/admin/users/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(result.message || 'User created successfully!');
+        setShowCreateForm(false);
+        fetchUsers(); // Refresh the list
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to create user: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert('Failed to create user. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-red-100 text-red-800';
@@ -204,8 +261,19 @@ export default function UserManagement() {
           <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
           <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
         </div>
-        <div className="text-sm text-gray-500">
-          Total Users: {users.length}
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-gray-500">
+            Total Users: {users.length}
+          </div>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="inline-flex items-center px-4 py-2 bg-[#359d49] text-white rounded-md hover:bg-[#2a6b39] focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:ring-offset-2"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create User
+          </button>
         </div>
       </div>
 
@@ -385,6 +453,243 @@ export default function UserManagement() {
           </div>
         </div>
       )}
+
+      {/* Create User Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Create New User</h3>
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <CreateUserForm 
+                departments={departments}
+                onSubmit={handleCreateUser}
+                onCancel={() => setShowCreateForm(false)}
+                isSubmitting={isSubmitting}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function CreateUserForm({ departments, onSubmit, onCancel, isSubmitting }: CreateUserFormProps) {
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    role: 'student' as 'student' | 'src' | 'admin',
+    student_id: '',
+    department: '',
+    year_level: 1,
+    phone: '',
+    src_department: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate required fields based on role
+    if (formData.role === 'student') {
+      if (!formData.student_id || !formData.department || !formData.year_level) {
+        alert('Please fill in all required fields for students');
+        return;
+      }
+    }
+    
+    if (formData.role === 'src' && !formData.src_department) {
+      alert('Please select an SRC department');
+      return;
+    }
+
+    onSubmit(formData);
+  };
+
+  const handleInputChange = (field: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Basic Information */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Full Name *
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.full_name}
+            onChange={(e) => handleInputChange('full_name', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            placeholder="Enter full name"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email *
+          </label>
+          <input
+            type="email"
+            required
+            value={formData.email}
+            onChange={(e) => handleInputChange('email', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            placeholder="Enter email address"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Password *
+          </label>
+          <input
+            type="password"
+            required
+            value={formData.password}
+            onChange={(e) => handleInputChange('password', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            placeholder="Enter password"
+            minLength={6}
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Phone Number
+          </label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => handleInputChange('phone', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            placeholder="Enter phone number"
+          />
+        </div>
+      </div>
+
+      {/* Role Selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Role *
+        </label>
+        <select
+          required
+          value={formData.role}
+          onChange={(e) => handleInputChange('role', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+        >
+          <option value="student">Student</option>
+          <option value="src">SRC Member</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      {/* Student-specific fields */}
+      {formData.role === 'student' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Student ID *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.student_id}
+              onChange={(e) => handleInputChange('student_id', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+              placeholder="Enter student ID"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Department *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.department}
+              onChange={(e) => handleInputChange('department', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+              placeholder="e.g., Computer Science"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Year Level *
+            </label>
+            <select
+              required
+              value={formData.year_level}
+              onChange={(e) => handleInputChange('year_level', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            >
+              <option value={1}>Year 1</option>
+              <option value={2}>Year 2</option>
+              <option value={3}>Year 3</option>
+              <option value={4}>Year 4</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* SRC-specific fields */}
+      {formData.role === 'src' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            SRC Department *
+          </label>
+          <select
+            required
+            value={formData.src_department}
+            onChange={(e) => handleInputChange('src_department', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+          >
+            <option value="">Select Department</option>
+            {departments.map((dept) => (
+              <option key={dept.id} value={dept.name}>
+                {dept.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Form Actions */}
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#359d49] rounded-md hover:bg-[#2a6b39] disabled:opacity-50"
+        >
+          {isSubmitting ? 'Creating...' : 'Create User'}
+        </button>
+      </div>
+    </form>
   );
 }

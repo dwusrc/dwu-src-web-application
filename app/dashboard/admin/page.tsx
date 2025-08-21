@@ -379,7 +379,7 @@ export default function AdminDashboard() {
               <Suspense fallback={
                 <div className="flex items-center justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
-                  </div>
+                    </div>
               }>
                 <div className="space-y-6">
                   <div className="bg-white shadow rounded-lg p-6">
@@ -389,12 +389,12 @@ export default function AdminDashboard() {
                     </p>
                     <ReportsManagement userRole="admin" />
                     </div>
-                        </div>
+                  </div>
               </Suspense>
                       )}
 
 
-                    </div>
+              </div>
         </div>
       </PageLayout>
     </ProtectedRoute>
