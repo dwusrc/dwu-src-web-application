@@ -25,9 +25,18 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) { return cookieStore.get(name)?.value; },
-        set(name, value, options) { cookieStore.set({ name, value, ...options }); },
-        remove(name, options) { cookieStore.set({ name, value: '', ...options }); },
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Ignore if called from Server Component
+          }
+        },
       },
     }
   );
@@ -64,5 +73,9 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: profileError.message }, { status: 400 });
   }
 
-  return Response.json({ success: true });
+  // Return success - user needs to login manually
+  return Response.json({ 
+    success: true, 
+    message: 'Account created successfully. Please login with your credentials.'
+  });
 } 

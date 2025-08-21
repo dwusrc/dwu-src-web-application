@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageLayout } from "../components";
-import { useSession } from "../contexts/session-context";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const { refreshProfile } = useSession();
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -23,29 +24,52 @@ export default function LoginPage() {
     setSuccess(false);
     
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      // First, try to sign in directly with Supabase client
+      const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
       });
-      
-      const data = await res.json();
-      
-      if (data.success) {
+
+      if (supabaseError) {
+        setError(supabaseError.message);
+        return;
+      }
+
+      if (data.user && data.session) {
         setSuccess(true);
-        // Refresh the session context
-        await refreshProfile();
+        
+        // Get user profile to determine role
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, full_name, department, src_department')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          setError('Failed to get user profile');
+          return;
+        }
+
+        console.log('Login successful:', { user: data.user, profile });
+        
+        // Determine redirect URL based on user role
+        let redirectUrl = "/dashboard";
+        if (profile.role === "student") redirectUrl = "/dashboard/student";
+        else if (profile.role === "src") redirectUrl = "/dashboard/src";
+        else if (profile.role === "admin") redirectUrl = "/dashboard/admin";
+        
+        console.log('Redirecting to:', redirectUrl);
+        
+        // Show success message briefly, then redirect
         setTimeout(() => {
-          let redirectUrl = "/dashboard";
-          if (data.role === "student") redirectUrl = "/dashboard/student";
-          else if (data.role === "src") redirectUrl = "/dashboard/src";
-          else if (data.role === "admin") redirectUrl = "/dashboard/admin";
-          window.location.href = redirectUrl;
+          router.push(redirectUrl);
         }, 1000);
       } else {
-        setError(data.error || "Login failed. Please try again.");
+        setError("Login failed. No user data received.");
       }
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error);
       setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);
@@ -85,7 +109,7 @@ export default function LoginPage() {
                   required
                   value={form.password}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-lg border border-[#2a6b39]/30 bg-[#ddc753]/10 px-3 py-2 shadow-sm focus:border-[#359d49] focus:ring-2 focus:ring-[#359d49]/30 text-gray-900"
+                  className="mt-1 block w-full rounded-lg border border-[#2a6b39]/30 bg-[#ddc753]/10 px-3 py-2 shadow-sm focus:border-[#359d49]/30 text-gray-900"
                 />
               </div>
               {error && <div className="text-red-600 text-sm font-medium">{error}</div>}

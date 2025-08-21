@@ -59,13 +59,20 @@ export function Header({ className }: HeaderProps) {
     setShowUserMenu(false);
     
     try {
-      await signOut();
+      const result = await signOut(true); // Use API route for logout
       
-      // Use Next.js router for navigation instead of window.location
-      router.push('/');
-      router.refresh(); // Force a refresh of the page data
+      if (result.success) {
+        // Use Next.js router for navigation instead of window.location
+        router.push('/');
+        router.refresh(); // Force a refresh of the page data
+      } else {
+        console.error('Sign out failed:', result.error);
+        // Even if sign out fails, redirect to home page
+        router.push('/');
+      }
       
-    } catch {
+    } catch (error) {
+      console.error('Sign out error:', error);
       // Even if sign out fails, redirect to home page
       router.push('/');
     } finally {
@@ -186,4 +193,4 @@ export function Header({ className }: HeaderProps) {
       </div>
     </header>
   );
-} 
+}

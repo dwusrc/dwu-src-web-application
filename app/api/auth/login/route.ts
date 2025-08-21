@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     const cookieStore = await cookies();
     
-        const supabase = createServerClient(
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     // Get user profile to determine role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, full_name, department, src_department')
       .eq('id', data.user?.id)
       .single();
 
@@ -56,15 +56,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to get user profile' }, { status: 500 });
     }
 
-    // Return the session data
-    return NextResponse.json({ 
+    // Create response with proper headers
+    const response = NextResponse.json({ 
       success: true, 
       user: data.user,
       session: data.session,
-      role: profile?.role || null
+      role: profile?.role || null,
+      profile: profile
     });
 
-  } catch {
+    // Ensure cookies are properly set in the response
+    const authCookies = await supabase.auth.getSession();
+    if (authCookies.data.session) {
+      // Set auth cookies in the response
+      response.cookies.set('sb-access-token', authCookies.data.session.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      
+      response.cookies.set('sb-refresh-token', authCookies.data.session.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
+
+    return response;
+
+  } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

@@ -28,7 +28,7 @@ interface SessionContextType {
   profile: UserProfile | null;
   session: Session | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  signOut: (useApiRoute?: boolean) => Promise<{ success: boolean; error?: string }>;
   refreshProfile: () => Promise<void>;
   updateProfile: (profileData: UserProfile) => void;
 }
@@ -90,39 +90,63 @@ export function SessionProvider({ children }: SessionProviderProps) {
   }, [user]);
 
   // Enhanced sign out function with better error handling and cleanup
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (useApiRoute: boolean = false) => {
     // Prevent multiple sign out attempts
     if (isSigningOut) {
-      return;
+      return { success: false, error: 'Sign out already in progress' };
     }
 
     setIsSigningOut(true);
     
     try {
-      // Clear local state first
+      let signOutError = null;
+      
+      if (useApiRoute) {
+        // Use the logout API route for server-side logout
+        try {
+          const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          
+          const result = await response.json();
+          if (!result.success) {
+            signOutError = result.error;
+          }
+        } catch (apiError) {
+          console.error('API logout error:', apiError);
+          signOutError = 'Failed to logout via API';
+        }
+      } else {
+        // Use direct Supabase client logout
+        const { error } = await supabase.auth.signOut();
+        signOutError = error;
+      }
+      
+      if (signOutError) {
+        console.error('Sign out error:', signOutError);
+        // Even if there's an error, we should still clear the session
+      }
+      
+      // Clear local state AFTER the API call succeeds
       setUser(null);
       setProfile(null);
       setSession(null);
       
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        // Even if there's an error, we should still clear the session
-      }
-      
       // Use utility function to clear all session data
       clearSessionData();
       
-      // Use router.push for client-side navigation instead of window.location
-      // This will be handled by the component that calls signOut
+      // Return success - let the calling component handle navigation
+      return { success: true };
       
-    } catch {
+    } catch (error) {
+      console.error('Sign out error:', error);
       // Ensure state is cleared even if there's an error
       setUser(null);
       setProfile(null);
       setSession(null);
       clearSessionData();
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
     } finally {
       setIsSigningOut(false);
     }
@@ -136,7 +160,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('Initial session result:', session?.user?.id);
         
         if (!mounted) return;
         
@@ -144,14 +170,17 @@ export function SessionProvider({ children }: SessionProviderProps) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          console.log('Initial user found, fetching profile...');
           const profileData = await fetchProfile(session.user.id);
           if (mounted) {
+            console.log('Initial profile set:', profileData);
             setProfile(profileData);
           }
         }
 
         setLoading(false);
-      } catch {
+      } catch (error) {
+        console.error('Error getting initial session:', error);
         setLoading(false);
       }
     };
@@ -162,17 +191,30 @@ export function SessionProvider({ children }: SessionProviderProps) {
     try {
       authSubscription = supabase.auth.onAuthStateChange(
         async (event, session) => {
+          console.log('Auth state change:', event, session?.user?.id);
+          
           if (!mounted) return;
           
-          setSession(session);
-          setUser(session?.user ?? null);
+          try {
+            setSession(session);
+            setUser(session?.user ?? null);
 
-          if (session?.user) {
-            const profileData = await fetchProfile(session.user.id);
-            if (mounted) {
-              setProfile(profileData);
+            if (session?.user) {
+              console.log('Setting user in context:', session.user.id);
+              const profileData = await fetchProfile(session.user.id);
+              if (mounted) {
+                console.log('Setting profile in context:', profileData);
+                setProfile(profileData);
+              }
+            } else {
+              console.log('Clearing user and profile from context');
+              if (mounted) {
+                setProfile(null);
+              }
             }
-          } else {
+          } catch (error) {
+            console.error('Auth state change error:', error);
+            // Set profile to null on error
             if (mounted) {
               setProfile(null);
             }
@@ -181,8 +223,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
           setLoading(false);
         }
       );
-          } catch {
-        setLoading(false);
+    } catch (error) {
+      console.error('Failed to set up auth subscription:', error);
+      setLoading(false);
     }
 
     // Cleanup function
@@ -223,7 +266,9 @@ export function useSession() {
 // Helper hooks for role-based access
 export function useIsAuthenticated() {
   const { user, loading } = useSession();
-  return { isAuthenticated: !!user, loading };
+  const isAuthenticated = !!user;
+  console.log('useIsAuthenticated hook:', { user: user?.id, loading, isAuthenticated });
+  return { isAuthenticated, loading };
 }
 
 export function useUserRole() {

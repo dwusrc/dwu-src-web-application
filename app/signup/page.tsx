@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageLayout } from "../components";
 
 const departments = [
@@ -25,6 +26,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -35,29 +37,44 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
     setSuccess(false);
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        year_level: Number(form.year_level),
-      }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (data.success) {
-      setSuccess(true);
-      setForm({
-        full_name: "",
-        email: "",
-        password: "",
-        student_id: "",
-        department: "",
-        year_level: "",
-        phone: "",
+    
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          year_level: Number(form.year_level),
+        }),
       });
-    } else {
-      setError(data.error || "Sign up failed. Please try again.");
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        setSuccess(true);
+        
+        // Show success message and redirect to login page
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+        
+        // Clear form
+        setForm({
+          full_name: "",
+          email: "",
+          password: "",
+          student_id: "",
+          department: "",
+          year_level: "",
+          phone: "",
+        });
+      } else {
+        setError(data.error || "Sign up failed. Please try again.");
+      }
+    } catch {
+      setError("An error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -166,7 +183,11 @@ export default function SignupPage() {
                 />
               </div>
               {error && <div className="text-red-600 text-sm font-medium">{error}</div>}
-              {success && <div className="text-green-600 text-sm font-medium">Sign up successful! Please check your email to verify your account.</div>}
+              {success && (
+                <div className="text-green-600 text-sm font-medium">
+                  Sign up successful! Redirecting to login page...
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={loading}
