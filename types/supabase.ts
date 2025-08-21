@@ -9,6 +9,8 @@ export type ProjectStatus = 'not_started' | 'planning' | 'in_progress' | 'on_hol
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type ForumCategory = 'general' | 'academic' | 'events' | 'suggestions' | 'announcements';
 
+
+
 export type NotificationType = 'complaint_update' | 'news_post' | 'forum_reply' | 'system';
 
 // Report Category types

@@ -24,6 +24,7 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
   const [editingProject, setEditingProject] = useState<SrcProjectWithRelations | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [projectSummary, setProjectSummary] = useState<ProjectSummary>({
     pending: 0,
     approved: 0,
@@ -250,9 +251,24 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
     }
   };
 
+
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
+
+  // Filter projects based on search query and status
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = searchQuery === '' || 
+      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.objectives.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (project.department?.name && project.department.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesStatus = selectedStatus === 'all' || project.status === selectedStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   if (showCreateForm) {
     return (
@@ -299,17 +315,17 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
           onCancel={() => setEditingProject(null)}
           isSubmitting={isSubmitting}
           submitLabel="Update Project"
-          initialData={{
-            title: editingProject.title,
-            description: editingProject.description,
-            objectives: editingProject.objectives,
-            start_date: editingProject.start_date || '',
-            target_finish_date: editingProject.target_finish_date || '',
-            budget_allocated: editingProject.budget_allocated,
-            team_members: editingProject.team_members || [],
-            progress_percentage: editingProject.progress_percentage,
-            status: editingProject.status
-          }}
+                     initialData={{
+             title: editingProject.title,
+             description: editingProject.description,
+             objectives: editingProject.objectives,
+             start_date: editingProject.start_date || '',
+             target_finish_date: editingProject.target_finish_date || '',
+             budget_allocated: editingProject.budget_allocated,
+             team_members: editingProject.team_members || [],
+             progress_percentage: editingProject.progress_percentage,
+             status: editingProject.status
+           }}
         />
       </div>
     );
@@ -408,28 +424,90 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
         </div>
       )}
 
-      {/* Status Filter */}
-      <div className="w-full sm:w-64">
-        <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-          Filter by Status
-        </label>
-        <select
-          id="status-filter"
-          value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-        >
-          <option value="all">All Statuses</option>
-          <option value="not_started">Not Started</option>
-          <option value="planning">Planning</option>
-          <option value="in_progress">In Progress</option>
-          <option value="on_hold">On Hold</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
+             {/* Search and Filters */}
+       <div className="flex flex-col sm:flex-row gap-4">
+         {/* Search Input */}
+         <div className="flex-1">
+           <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+             Search Projects
+           </label>
+           <div className="relative">
+             <input
+               type="text"
+               id="search"
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               placeholder="Search by title, description, objectives, or department..."
+               className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+             />
+             {searchQuery && (
+               <button
+                 onClick={() => setSearchQuery('')}
+                 className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                 title="Clear search"
+               >
+                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                 </svg>
+               </button>
+             )}
+           </div>
+         </div>
+         
+                    {/* Status Filter */}
+           <div className="w-full sm:w-64">
+             <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+               Filter by Status
+             </label>
+             <select
+               id="status-filter"
+               value={selectedStatus}
+               onChange={(e) => setSelectedStatus(e.target.value)}
+               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+             >
+               <option value="all">All Statuses</option>
+               <option value="not_started">Not Started</option>
+               <option value="planning">Planning</option>
+               <option value="in_progress">In Progress</option>
+               <option value="on_hold">On Hold</option>
+               <option value="completed">Completed</option>
+               <option value="cancelled">Cancelled</option>
+             </select>
+           </div>
 
-      {/* Projects List */}
+           {/* Reset Filters Button */}
+           {(searchQuery || selectedStatus !== 'all') && (
+             <div className="flex items-end">
+               <button
+                 onClick={() => {
+                   setSearchQuery('');
+                   setSelectedStatus('all');
+                 }}
+                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+               >
+                 Reset Filters
+               </button>
+             </div>
+           )}
+               </div>
+
+       {/* Search Results Counter */}
+       {(searchQuery || selectedStatus !== 'all') && (
+         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+           <div className="flex items-center text-sm text-blue-800">
+             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+             </svg>
+             <span>
+               Showing {filteredProjects.length} of {projects.length} projects
+               {searchQuery && ` matching "${searchQuery}"`}
+               {selectedStatus !== 'all' && ` with status "${selectedStatus}"`}
+             </span>
+           </div>
+         </div>
+       )}
+
+       {/* Projects List */}
       {loading ? (
         <div className="flex items-center justify-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#359d49]"></div>
@@ -450,19 +528,23 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
             </div>
           </div>
         </div>
-      ) : projects.length === 0 ? (
-        <div className="text-center py-12">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No projects found</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {selectedStatus !== 'all' 
-              ? 'Try adjusting your status filter to see more projects.'
-              : 'Get started by creating your first project!'
-            }
-          </p>
-        </div>
+             ) : filteredProjects.length === 0 ? (
+         <div className="text-center py-12">
+           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+           </svg>
+           <h3 className="mt-2 text-sm font-medium text-gray-900">
+             {searchQuery || selectedStatus !== 'all' ? 'No projects match your search/filter' : 'No projects found'}
+           </h3>
+           <p className="mt-1 text-sm text-gray-500">
+             {searchQuery 
+               ? `No projects found matching "${searchQuery}". Try adjusting your search terms.`
+               : selectedStatus !== 'all' 
+                 ? 'Try adjusting your status filter to see more projects.'
+                 : 'Get started by creating your first project!'
+             }
+           </p>
+         </div>
       ) : (
         <div className="space-y-6">
           {/* Projects by Approval Status */}
@@ -474,43 +556,43 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
               </h3>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg overflow-hidden">
                 <ul className="divide-y divide-yellow-200">
-                  {projects
-                    .filter(project => project.approval_status === 'pending')
-                    .map((project) => (
+                                     {filteredProjects
+                     .filter(project => project.approval_status === 'pending')
+                     .map((project) => (
                       <li key={project.id}>
                         <div className="px-4 py-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {project.title}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                                    {getStatusLabel(project.status)}
-                                  </span>
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
-                                    {getApprovalStatusLabel(project.approval_status)}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              <p className="mt-1 text-sm text-gray-600 line-clamp-2">
-                                {project.description}
-                              </p>
-                              
-                              <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                                <span>Progress: {project.progress_percentage}%</span>
-                                {project.start_date && (
-                                  <span>Started: {formatDate(project.start_date)}</span>
-                                )}
-                                {project.target_finish_date && (
-                                  <span>Target: {formatDate(project.target_finish_date)}</span>
-                                )}
-                                {project.budget_allocated && (
-                                  <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
-                                )}
-                              </div>
+                                                           <div className="flex items-center justify-between">
+                               <p className="text-sm font-medium text-gray-900 truncate">
+                                 {project.title}
+                               </p>
+                               <div className="flex items-center gap-2">
+                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                                   {getStatusLabel(project.status)}
+                                 </span>
+                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
+                                   {getApprovalStatusLabel(project.approval_status)}
+                                 </span>
+                               </div>
+                             </div>
+                             
+                             <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+                               {project.description}
+                             </p>
+                             
+                             <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                               <span>Progress: {project.progress_percentage}%</span>
+                               {project.start_date && (
+                                 <span>Started: {formatDate(project.start_date)}</span>
+                               )}
+                               {project.target_finish_date && (
+                                 <span>Target: {formatDate(project.target_finish_date)}</span>
+                               )}
+                               {project.budget_allocated && (
+                                 <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
+                               )}
+                             </div>
                             </div>
                             
                                                          <div className="flex items-center gap-2 ml-4">
@@ -555,26 +637,26 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
               </h3>
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-                  {projects
-                    .filter(project => project.approval_status === 'approved')
-                    .map((project) => (
+                                     {filteredProjects
+                     .filter(project => project.approval_status === 'approved')
+                     .map((project) => (
               <li key={project.id}>
                 <div className="px-4 py-4 sm:px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-[#359d49] truncate">
-                          {project.title}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                            {getStatusLabel(project.status)}
-                          </span>
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
-                                    {getApprovalStatusLabel(project.approval_status)}
-                            </span>
-                        </div>
-                      </div>
+                                             <div className="flex items-center justify-between">
+                         <p className="text-sm font-medium text-[#359d49] truncate">
+                           {project.title}
+                         </p>
+                         <div className="flex items-center gap-2">
+                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                             {getStatusLabel(project.status)}
+                           </span>
+                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
+                                     {getApprovalStatusLabel(project.approval_status)}
+                             </span>
+                         </div>
+                       </div>
                       
                       <p className="mt-1 text-sm text-gray-600 line-clamp-2">
                         {project.description}
@@ -624,11 +706,11 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
                 <span className="text-red-600 mr-2">❌</span>
                 Rejected Projects ({projectSummary.rejected})
               </h3>
-              <div className="bg-red-50 border border-red-200 rounded-lg overflow-hidden">
-                <ul className="divide-y divide-red-200">
-                  {projects
-                    .filter(project => project.approval_status === 'rejected')
-                    .map((project) => (
+                             <div className="bg-red-50 border border-red-200 rounded-lg overflow-hidden">
+                 <ul className="divide-y divide-red-200">
+                   {filteredProjects
+                     .filter(project => project.approval_status === 'rejected')
+                     .map((project) => (
                       <li key={project.id}>
                         <div className="px-4 py-4">
                           <div className="flex items-center justify-between">
@@ -637,14 +719,14 @@ export default function SrcProjectManagement({ userDepartment }: SrcProjectManag
                                 <p className="text-sm font-medium text-gray-900 truncate">
                                   {project.title}
                                 </p>
-                                <div className="flex items-center gap-2">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                                    {getStatusLabel(project.status)}
-                                  </span>
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
-                                    {getApprovalStatusLabel(project.approval_status)}
-                                  </span>
-                                </div>
+                                                                 <div className="flex items-center gap-2">
+                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                                     {getStatusLabel(project.status)}
+                                   </span>
+                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getApprovalStatusColor(project.approval_status)}`}>
+                                     {getApprovalStatusLabel(project.approval_status)}
+                                   </span>
+                                 </div>
                               </div>
                               
                               <p className="mt-1 text-sm text-gray-600 line-clamp-2">

@@ -18,6 +18,7 @@ export default function SrcProjectList({
   const [error, setError] = useState<string | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [departments, setDepartments] = useState<Array<{id: string, name: string, color: string}>>([]);
 
   const fetchProjects = useCallback(async () => {
@@ -112,6 +113,20 @@ export default function SrcProjectList({
     return words.slice(0, wordLimit).join(' ') + '...';
   };
 
+  // Filter projects based on search query, department, and status
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = searchQuery === '' || 
+      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.objectives.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (project.department?.name && project.department.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesDepartment = selectedDepartment === 'all' || project.department_id === selectedDepartment;
+    const matchesStatus = selectedStatus === 'all' || project.status === selectedStatus;
+    
+    return matchesSearch && matchesDepartment && matchesStatus;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -162,65 +177,133 @@ export default function SrcProjectList({
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <label htmlFor="department-filter" className="block text-sm font-medium text-gray-700 mb-1">
-            Department
+      {/* Search and Filters */}
+      <div className="space-y-4">
+        {/* Search Input */}
+        <div className="w-full">
+          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            Search Projects
           </label>
-          <select
-            id="department-filter"
-            value={selectedDepartment}
-            onChange={(e) => setSelectedDepartment(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-          >
-            <option value="all">All Departments</option>
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.id}>
-                {dept.name}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <input
+              type="text"
+              id="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by title, description, objectives, or department..."
+              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Clear search"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1">
-          <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <select
-            id="status-filter"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-          >
-            <option value="all">All Statuses</option>
-            <option value="not_started">Not Started</option>
-            <option value="planning">Planning</option>
-            <option value="in_progress">In Progress</option>
-            <option value="on_hold">On Hold</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+        {/* Department and Status Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <label htmlFor="department-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Department
+            </label>
+            <select
+              id="department-filter"
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            >
+              <option value="all">All Departments</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1">
+            <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              id="status-filter"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+            >
+              <option value="all">All Statuses</option>
+              <option value="not_started">Not Started</option>
+              <option value="planning">Planning</option>
+              <option value="in_progress">In Progress</option>
+              <option value="on_hold">On Hold</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          {/* Reset Filters Button */}
+          {(searchQuery || selectedDepartment !== 'all' || selectedStatus !== 'all') && (
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedDepartment('all');
+                  setSelectedStatus('all');
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+              >
+                Reset Filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Search Results Counter */}
+      {(searchQuery || selectedDepartment !== 'all' || selectedStatus !== 'all') && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center text-sm text-blue-800">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span>
+              Showing {filteredProjects.length} of {projects.length} projects
+              {searchQuery && ` matching "${searchQuery}"`}
+              {selectedDepartment !== 'all' && ` from ${departments.find(d => d.id === selectedDepartment)?.name} department`}
+              {selectedStatus !== 'all' && ` with status "${selectedStatus}"`}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Projects Grid */}
-      {projects.length === 0 ? (
+      {filteredProjects.length === 0 ? (
         <div className="text-center py-12">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No projects found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            {searchQuery || selectedDepartment !== 'all' || selectedStatus !== 'all' ? 'No projects match your search/filter' : 'No projects found'}
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
-            {selectedDepartment !== 'all' || selectedStatus !== 'all' 
-              ? 'Try adjusting your filters to see more projects.'
-              : 'No SRC projects have been approved yet.'
+            {searchQuery 
+              ? `No projects found matching "${searchQuery}". Try adjusting your search terms.`
+              : selectedDepartment !== 'all' || selectedStatus !== 'all' 
+                ? 'Try adjusting your filters to see more projects.'
+                : 'No SRC projects have been approved yet.'
             }
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <div
               key={project.id}
               className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200"
