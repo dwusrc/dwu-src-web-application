@@ -24,4 +24,11 @@ export { default as FeaturedNews } from './news/featured-news';
 export { default as ReportsManagement } from './reports/reports-management';
 export { default as ReportsList } from './reports/reports-list';
 export { default as ReportUploadForm } from './reports/report-upload-form';
-export { default as CategoryManagement } from './reports/category-management'; 
+export { default as CategoryManagement } from './reports/category-management';
+
+// About Components
+export { AboutHeroSection } from './about/about-hero-section';
+export { AboutMissionSection } from './about/about-mission-section';
+export { AboutQuickLinksSection } from './about/about-quick-links-section';
+export { AboutStatsSection } from './about/about-stats-section';
+export { AboutCTASection } from './about/about-cta-section'; 

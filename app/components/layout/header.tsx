@@ -14,9 +14,11 @@ export function Header({ className }: HeaderProps) {
   const { user, profile, signOut } = useSession();
   const { isAuthenticated } = useIsAuthenticated();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAboutMenu, setShowAboutMenu] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
+  const aboutMenuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -24,33 +26,37 @@ export function Header({ className }: HeaderProps) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
+      if (aboutMenuRef.current && !aboutMenuRef.current.contains(event.target as Node)) {
+        setShowAboutMenu(false);
+      }
     };
 
-    if (showUserMenu) {
+    if (showUserMenu || showAboutMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showUserMenu]);
+  }, [showUserMenu, showAboutMenu]);
 
   // Close menu when pressing Escape key
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setShowUserMenu(false);
+        setShowAboutMenu(false);
       }
     };
 
-    if (showUserMenu) {
+    if (showUserMenu || showAboutMenu) {
       document.addEventListener('keydown', handleEscapeKey);
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [showUserMenu]);
+  }, [showUserMenu, showAboutMenu]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return; // Prevent multiple clicks
@@ -97,17 +103,66 @@ export function Header({ className }: HeaderProps) {
       </Link>
       
       <nav className="hidden md:flex gap-6 text-base font-medium">
+        {/* About Dropdown */}
+        <div className="relative" ref={aboutMenuRef}>
+          <button
+            onClick={() => setShowAboutMenu(!showAboutMenu)}
+            onMouseEnter={() => setShowAboutMenu(true)}
+            className="flex items-center gap-1 hover:underline underline-offset-4 transition-colors"
+          >
+            About
+            <svg
+              className={`w-4 h-4 transition-transform ${showAboutMenu ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showAboutMenu && (
+            <div 
+              className="absolute top-full left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50 border border-gray-200"
+              onMouseLeave={() => setShowAboutMenu(false)}
+            >
+              <Link
+                href="/about"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => setShowAboutMenu(false)}
+              >
+                Overview
+              </Link>
+              <Link
+                href="/about/departments"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => setShowAboutMenu(false)}
+              >
+                Departments
+              </Link>
+              <Link
+                href="/about/leadership"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => setShowAboutMenu(false)}
+              >
+                Leadership
+              </Link>
+              <Link
+                href="/about/events"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => setShowAboutMenu(false)}
+              >
+                Events
+              </Link>
+            </div>
+          )}
+        </div>
+
         <Link href="/news" className="hover:underline underline-offset-4">
-          News
+          News & Updates
         </Link>
-        <Link href="/complaints" className="hover:underline underline-offset-4">
-          Complaints
-        </Link>
-        <Link href="/forum" className="hover:underline underline-offset-4">
-          Forum
-        </Link>
-        <Link href="/reports" className="hover:underline underline-offset-4">
-          Reports
+        <Link href="/contact" className="hover:underline underline-offset-4">
+          Contact
         </Link>
       </nav>
 
