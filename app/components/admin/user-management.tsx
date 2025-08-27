@@ -8,6 +8,10 @@ interface Profile {
   email: string;
   role: 'student' | 'src' | 'admin';
   src_department?: string;
+  department?: string;
+  year_level?: number;
+  student_id?: string;
+  phone?: string;
   created_at: string;
   is_active: boolean;
 }
@@ -44,6 +48,11 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Filter states
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [yearLevelFilter, setYearLevelFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     fetchUsers();
@@ -225,6 +234,44 @@ export default function UserManagement() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Filter users based on selected filters and search query
+  const filteredUsers = users.filter(user => {
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const searchableFields = [
+        user.full_name || '',
+        user.email || '',
+        user.student_id || '',
+        user.department || '',
+        user.src_department || '',
+        user.phone || ''
+      ];
+      
+      const hasMatch = searchableFields.some(field => 
+        field.toLowerCase().includes(query)
+      );
+      
+      if (!hasMatch) {
+        return false;
+      }
+    }
+    
+    // Role filter
+    if (roleFilter !== 'all' && user.role !== roleFilter) {
+      return false;
+    }
+    
+    // Year level filter (only apply to students)
+    if (yearLevelFilter !== 'all' && user.role === 'student') {
+      if (user.year_level !== parseInt(yearLevelFilter)) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -263,7 +310,7 @@ export default function UserManagement() {
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-500">
-            Total Users: {users.length}
+            Total Users: {filteredUsers.length} of {users.length}
           </div>
           <button
             onClick={() => setShowCreateForm(true)}
@@ -277,10 +324,84 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+        <div className="flex flex-col gap-4">
+          {/* Search Bar */}
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700 mb-1">Search Users</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, email, student ID, department, phone..."
+                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              {/* Role Filter */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] min-w-[140px]"
+                >
+                  <option value="all">All Types</option>
+                  <option value="student">Students</option>
+                  <option value="src">SRC Members</option>
+                  <option value="admin">Admins</option>
+                </select>
+              </div>
+
+              {/* Year Level Filter */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">Year Level</label>
+                <select
+                  value={yearLevelFilter}
+                  onChange={(e) => setYearLevelFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] min-w-[140px]"
+                >
+                  <option value="all">All Years</option>
+                  <option value="1">Year 1</option>
+                  <option value="2">Year 2</option>
+                  <option value="3">Year 3</option>
+                  <option value="4">Year 4</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(roleFilter !== 'all' || yearLevelFilter !== 'all' || searchQuery.trim()) && (
+              <button
+                onClick={() => {
+                  setRoleFilter('all');
+                  setYearLevelFilter('all');
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Users List */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <li key={user.id}>
               <div className="px-4 py-4 sm:px-6">
                 <div className="flex items-center justify-between">
@@ -315,8 +436,17 @@ export default function UserManagement() {
                     
                     <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
                       <span>Created: {formatDate(user.created_at)}</span>
-                      {user.src_department && (
-                        <span>Department: {user.src_department}</span>
+                      {user.role === 'student' && user.department && (
+                        <span>Department: {user.department}</span>
+                      )}
+                      {user.role === 'student' && user.year_level && (
+                        <span>Year: {user.year_level}</span>
+                      )}
+                      {user.role === 'src' && user.src_department && (
+                        <span>SRC Department: {user.src_department}</span>
+                      )}
+                      {user.student_id && (
+                        <span>ID: {user.student_id}</span>
                       )}
                     </div>
                   </div>
