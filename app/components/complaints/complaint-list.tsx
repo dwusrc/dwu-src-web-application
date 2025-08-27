@@ -60,18 +60,72 @@ export default function ComplaintList({
   }), []);
 
   const PRIORITY_CONFIG = useMemo(() => ({
-    low: { label: 'Low', color: 'text-green-800', bgColor: 'bg-green-100' },
-    medium: { label: 'Medium', color: 'text-yellow-800', bgColor: 'bg-yellow-100' },
-    high: { label: 'High', color: 'text-orange-800', bgColor: 'bg-orange-100' },
-    urgent: { label: 'Urgent', color: 'text-red-800', bgColor: 'bg-red-100' },
+    low: { 
+      label: 'Low', 
+      color: 'text-emerald-700', 
+      bgColor: 'bg-emerald-50',
+      borderColor: 'border-emerald-200',
+      icon: '🟢'
+    },
+    medium: { 
+      label: 'Medium', 
+      color: 'text-amber-700', 
+      bgColor: 'bg-amber-50',
+      borderColor: 'border-amber-200',
+      icon: '🟡'
+    },
+    high: { 
+      label: 'High', 
+      color: 'text-orange-700', 
+      bgColor: 'bg-orange-50',
+      borderColor: 'border-orange-200',
+      icon: '🟠'
+    },
+    urgent: { 
+      label: 'Urgent', 
+      color: 'text-red-700', 
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-200',
+      icon: '🔴'
+    },
   }), []);
 
   const STATUS_CONFIG = useMemo(() => ({
-    pending: { label: 'Pending', icon: '⏳', bgColor: 'bg-yellow-100', color: 'text-yellow-800' },
-    in_progress: { label: 'In Progress', icon: '🔄', bgColor: 'bg-blue-100', color: 'text-blue-800' },
-    resolved: { label: 'Resolved', icon: '✅', bgColor: 'bg-green-100', color: 'text-green-800' },
-    closed: { label: 'Closed', icon: '🔒', bgColor: 'bg-gray-100', color: 'text-gray-800' },
-    rejected: { label: 'Rejected', icon: '❌', bgColor: 'bg-red-100', color: 'text-red-800' },
+    pending: { 
+      label: 'Pending', 
+      icon: '⏳', 
+      bgColor: 'bg-amber-50', 
+      color: 'text-amber-700',
+      borderColor: 'border-amber-200'
+    },
+    in_progress: { 
+      label: 'In Progress', 
+      icon: '🔄', 
+      bgColor: 'bg-blue-50', 
+      color: 'text-blue-700',
+      borderColor: 'border-blue-200'
+    },
+    resolved: { 
+      label: 'Resolved', 
+      icon: '✅', 
+      bgColor: 'bg-emerald-50', 
+      color: 'text-emerald-700',
+      borderColor: 'border-emerald-200'
+    },
+    closed: { 
+      label: 'Closed', 
+      icon: '🔒', 
+      bgColor: 'bg-slate-50', 
+      color: 'text-slate-700',
+      borderColor: 'border-slate-200'
+    },
+    rejected: { 
+      label: 'Rejected', 
+      icon: '❌', 
+      bgColor: 'bg-red-50', 
+      color: 'text-red-700',
+      borderColor: 'border-red-200'
+    },
   }), []);
 
   // Quick filter date calculations
@@ -414,12 +468,12 @@ export default function ComplaintList({
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       {/* Enhanced Search Bar */}
-      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="flex flex-col space-y-4">
+      <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="space-y-4">
           {/* Main Search Input */}
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -428,14 +482,14 @@ export default function ComplaintList({
               placeholder="Search complaints by title, description, or department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+              className="w-full pl-12 pr-12 py-4 border-0 rounded-xl bg-white/80 backdrop-blur-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-base transition-all duration-200"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                className="absolute inset-y-0 right-0 pr-4 flex items-center hover:bg-slate-100 rounded-r-xl transition-colors duration-200"
               >
-                <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 text-slate-400 hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -444,23 +498,31 @@ export default function ComplaintList({
 
           {/* Search Results Summary */}
           {searchResultsSummary && (
-            <div className="text-sm text-blue-600">
+            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               {searchResultsSummary}
             </div>
           )}
 
           {/* Quick Filter Presets */}
           <div className="flex flex-wrap gap-2">
-            <span className="text-sm font-medium text-gray-700 mr-2">Quick Filters:</span>
+            <span className="text-sm font-semibold text-slate-700 mr-2 flex items-center gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              Quick Filters:
+            </span>
             <Button
               onClick={() => setFilters(prev => ({ ...prev, status: 'pending' }))}
-              className="text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg shadow-sm"
+              className="text-sm bg-white/90 backdrop-blur-sm border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300 px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
             >
               ⏳ Pending
             </Button>
             <Button
               onClick={() => setFilters(prev => ({ ...prev, priority: 'high' }))}
-              className="text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg shadow-sm"
+              className="text-sm bg-white/90 backdrop-blur-sm border border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
             >
               🔴 High Priority
             </Button>
@@ -472,13 +534,13 @@ export default function ComplaintList({
                   dateTo: quickFilterDates.today
                 }));
               }}
-              className="text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg shadow-sm"
+              className="text-sm bg-white/90 backdrop-blur-sm border border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
             >
               📅 This Week
             </Button>
             <Button
               onClick={clearAllFilters}
-              className="text-sm bg-gray-100 border border-gray-300 text-gray-600 hover:bg-gray-200 px-3 py-2 rounded-lg shadow-sm"
+              className="text-sm bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
             >
               🗑️ Clear All
             </Button>
@@ -488,18 +550,23 @@ export default function ComplaintList({
 
       {/* Bulk Actions Bar */}
       {showBulkActions && (
-        <div className="p-4 border-b border-gray-200 bg-yellow-50">
+        <div className="p-4 sm:p-6 border-b border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-yellow-800">
-                {selectedComplaintsCountText}
-              </span>
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-100 rounded-lg border border-amber-200">
+                <svg className="h-4 w-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-semibold text-amber-800">
+                  {selectedComplaintsCountText}
+                </span>
+              </div>
               <Button
                 onClick={() => {
                   setSelectedComplaints(new Set());
                   setSelectAll(false);
                 }}
-                className="text-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-2 py-1"
+                className="text-xs bg-white/80 backdrop-blur-sm border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300 px-3 py-2 rounded-lg transition-all duration-200"
               >
                 Clear Selection
               </Button>
@@ -509,7 +576,7 @@ export default function ComplaintList({
               {/* Export Selected */}
               <Button
                 onClick={() => exportToCSV(filteredComplaints.filter(c => selectedComplaints.has(c.id)))}
-                className="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1"
+                className="text-xs bg-emerald-100 border border-emerald-200 text-emerald-700 hover:bg-emerald-200 px-3 py-2 rounded-lg transition-all duration-200"
               >
                 📥 Export Selected ({selectedComplaints.size})
               </Button>
@@ -518,7 +585,7 @@ export default function ComplaintList({
               <div className="relative">
                 <select
                   onChange={(e) => handleBulkStatusUpdate(e.target.value as ComplaintStatus)}
-                  className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 border-0 rounded cursor-pointer"
+                  className="text-xs bg-blue-100 border border-blue-200 text-blue-700 hover:bg-blue-200 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200"
                   defaultValue=""
                 >
                   <option value="" disabled>🔄 Update Status</option>
@@ -534,7 +601,7 @@ export default function ComplaintList({
               <div className="relative">
                 <select
                   onChange={(e) => handleBulkPriorityUpdate(e.target.value as ComplaintPriority)}
-                  className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 border-0 rounded cursor-pointer"
+                  className="text-xs bg-purple-100 border border-purple-200 text-purple-700 hover:bg-purple-200 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200"
                   defaultValue=""
                 >
                   <option value="" disabled>🎯 Update Priority</option>
@@ -551,20 +618,28 @@ export default function ComplaintList({
       )}
 
       {/* Export All Button */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
+      <div className="p-4 sm:p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-gray-50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-700">
-              {complaintsCountText} {selectedComplaintsText}
-            </span>
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg border border-slate-200">
+              <svg className="h-4 w-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="text-sm font-semibold text-slate-700">
+                {complaintsCountText} {selectedComplaintsText}
+              </span>
+            </div>
           </div>
           
           <div className="flex gap-2">
             <Button
               onClick={() => exportToCSV(filteredComplaints)}
-              className="text-sm bg-green-600 hover:bg-green-700 text-white px-4 py-2"
+              className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm transition-all duration-200 flex items-center gap-2"
             >
-              📥 Export All ({filteredComplaints.length})
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export All ({filteredComplaints.length})
             </Button>
           </div>
         </div>
@@ -572,14 +647,14 @@ export default function ComplaintList({
 
       {/* Filters */}
       {showFilters && (
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-gray-50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Status</label>
               <select
                 value={filters.status}
                 onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm"
               >
                 <option value="">All Status</option>
                 {Object.entries(STATUS_CONFIG).map(([value, config]) => (
@@ -590,36 +665,36 @@ export default function ComplaintList({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Priority</label>
               <select
                 value={filters.priority}
                 onChange={(e) => handleFilterChange('priority', e.target.value)}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm"
               >
                 <option value="">All Priorities</option>
                 {Object.entries(PRIORITY_CONFIG).map(([value, config]) => (
                   <option key={value} value={value}>
-                    {config.label}
+                    {config.icon} {config.label}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Department</label>
               <input
                 type="text"
                 placeholder="Filter by department..."
                 value={filters.department}
                 onChange={(e) => handleFilterChange('department', e.target.value)}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Category</label>
               <select
                 value={filters.category}
                 onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm"
               >
                 <option value="">All Categories</option>
                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
@@ -630,28 +705,33 @@ export default function ComplaintList({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Date From</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Date From</label>
               <input
                 type="date"
                 value={filters.dateFrom}
                 onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Date To</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Date To</label>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#359d49]"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm"
               />
             </div>
           </div>
           
           {/* Quick Date Filters */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs font-medium text-gray-700 mr-2">Quick Date Filters:</span>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="text-xs font-semibold text-slate-700 mr-2 flex items-center gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Quick Date Filters:
+            </span>
             <Button
               onClick={() => {
                 setFilters(prev => ({
@@ -660,7 +740,7 @@ export default function ComplaintList({
                   dateTo: quickFilterDates.today
                 }));
               }}
-              className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1"
+              className="text-xs bg-blue-100 border border-blue-200 text-blue-700 hover:bg-blue-200 px-3 py-2 rounded-lg transition-all duration-200"
             >
               Last 24 Hours
             </Button>
@@ -672,7 +752,7 @@ export default function ComplaintList({
                   dateTo: quickFilterDates.today
                 }));
               }}
-              className="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1"
+              className="text-xs bg-emerald-100 border border-emerald-200 text-emerald-700 hover:bg-emerald-200 px-3 py-2 rounded-lg transition-all duration-200"
             >
               Last 7 Days
             </Button>
@@ -684,7 +764,7 @@ export default function ComplaintList({
                   dateTo: quickFilterDates.today
                 }));
               }}
-              className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1"
+              className="text-xs bg-purple-100 border border-purple-200 text-purple-700 hover:bg-purple-200 px-3 py-2 rounded-lg transition-all duration-200"
             >
               Last 30 Days
             </Button>
@@ -696,7 +776,7 @@ export default function ComplaintList({
                   dateTo: ''
                 }));
               }}
-              className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1"
+              className="text-xs bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 px-3 py-2 rounded-lg transition-all duration-200"
             >
               Clear Dates
             </Button>
@@ -707,7 +787,7 @@ export default function ComplaintList({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-slate-200">
             <tr>
               {/* Bulk Selection Header */}
               <th className="px-6 py-3 text-left">
@@ -718,7 +798,7 @@ export default function ComplaintList({
                   className="h-4 w-4 text-[#359d49] focus:ring-[#359d49] border-gray-300 rounded"
                 />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('created_at')}>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors duration-200" onClick={() => handleSort('created_at')}>
                 <div className="flex items-center">
                   Date
                   {localSortBy === 'created_at' && (
@@ -726,16 +806,16 @@ export default function ComplaintList({
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Title
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Category
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Target Department
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('priority')}>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors duration-200" onClick={() => handleSort('priority')}>
                 <div className="flex items-center">
                   Priority
                   {localSortBy === 'priority' && (
@@ -743,7 +823,7 @@ export default function ComplaintList({
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors duration-200" onClick={() => handleSort('status')}>
                 <div className="flex items-center">
                   Status
                   {localSortBy === 'status' && (
@@ -751,7 +831,7 @@ export default function ComplaintList({
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -796,7 +876,7 @@ export default function ComplaintList({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-sm">
                       {CATEGORY_LABELS[complaint.category]}
                     </span>
                   </td>
@@ -827,21 +907,27 @@ export default function ComplaintList({
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      PRIORITY_CONFIG[complaint.priority]?.bgColor || 'bg-gray-100'
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border shadow-sm ${
+                      PRIORITY_CONFIG[complaint.priority]?.bgColor || 'bg-slate-100'
                     } ${
-                      PRIORITY_CONFIG[complaint.priority]?.color || 'text-gray-800'
+                      PRIORITY_CONFIG[complaint.priority]?.color || 'text-slate-700'
+                    } ${
+                      PRIORITY_CONFIG[complaint.priority]?.borderColor || 'border-slate-200'
                     }`}>
+                      {PRIORITY_CONFIG[complaint.priority]?.icon || '⚪'}
                       {PRIORITY_CONFIG[complaint.priority]?.label || complaint.priority || 'Unknown'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      STATUS_CONFIG[complaint.status]?.bgColor || 'bg-gray-100'
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border shadow-sm ${
+                      STATUS_CONFIG[complaint.status]?.bgColor || 'bg-slate-100'
                     } ${
-                      STATUS_CONFIG[complaint.status]?.color || 'text-gray-800'
+                      STATUS_CONFIG[complaint.status]?.color || 'text-slate-700'
+                    } ${
+                      STATUS_CONFIG[complaint.status]?.borderColor || 'border-slate-200'
                     }`}>
-                      {STATUS_CONFIG[complaint.status]?.icon || '❓'} {STATUS_CONFIG[complaint.status]?.label || complaint.status || 'Unknown'}
+                      {STATUS_CONFIG[complaint.status]?.icon || '❓'}
+                      {STATUS_CONFIG[complaint.status]?.label || complaint.status || 'Unknown'}
                     </span>
                   </td>
 
@@ -850,7 +936,7 @@ export default function ComplaintList({
                       {onView && (
                         <Button
                           onClick={() => onView(complaint)}
-                          className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200"
+                          className="text-xs bg-blue-100 border border-blue-200 text-blue-700 hover:bg-blue-200 hover:border-blue-300 px-3 py-2 rounded-lg shadow-sm transition-all duration-200"
                         >
                           View
                         </Button>
@@ -866,7 +952,7 @@ export default function ComplaintList({
 
       {/* Pagination */}
       {showPagination && totalPages > 1 && (
-        <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+        <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-4 py-6 border-t border-slate-200 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex-1 flex justify-between sm:hidden">
               <Button
