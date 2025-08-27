@@ -127,13 +127,11 @@ export default function ComplaintList({
         const searchLower = debouncedSearchQuery.toLowerCase();
         const titleMatch = complaint.title.toLowerCase().includes(searchLower);
         const descriptionMatch = complaint.description.toLowerCase().includes(searchLower);
-        const studentMatch = complaint.student?.full_name?.toLowerCase().includes(searchLower);
-        const studentIdMatch = complaint.student?.student_id?.toLowerCase().includes(searchLower);
         const departmentMatch = complaint.target_department_names?.some(dept => 
           dept.toLowerCase().includes(searchLower)
         );
         
-        if (!titleMatch && !descriptionMatch && !studentMatch && !studentIdMatch && !departmentMatch) {
+        if (!titleMatch && !descriptionMatch && !departmentMatch) {
           return false;
         }
       }
@@ -178,9 +176,6 @@ export default function ComplaintList({
     'ID',
     'Title',
     'Description',
-    'Student Name',
-    'Student ID',
-    'Student Department',
     'Category',
     'Priority',
     'Status',
@@ -202,9 +197,6 @@ export default function ComplaintList({
       complaint.id,
       `"${complaint.title.replace(/"/g, '""')}"`,
       `"${complaint.description.replace(/"/g, '""')}"`,
-      complaint.student?.full_name || '',
-      complaint.student?.student_id || '',
-      complaint.student?.department || '',
       complaint.category,
       complaint.priority,
       complaint.status,
@@ -433,7 +425,7 @@ export default function ComplaintList({
             </div>
             <input
               type="text"
-              placeholder="Search complaints by title, description, student name, or department..."
+              placeholder="Search complaints by title, description, or department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
@@ -738,9 +730,6 @@ export default function ComplaintList({
                 Title
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Student
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Category
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -770,15 +759,19 @@ export default function ComplaintList({
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedComplaints.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
                   {noComplaintsMessage}
                 </td>
               </tr>
             ) : (
               sortedComplaints.map((complaint) => (
-                <tr key={complaint.id} className="hover:bg-gray-50">
+                <tr 
+                  key={complaint.id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => onView(complaint)}
+                >
                   {/* Bulk Selection Checkbox */}
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedComplaints.has(complaint.id)}
@@ -800,20 +793,6 @@ export default function ComplaintList({
                     </div>
                     <div className="text-sm text-gray-500 max-w-xs truncate">
                       {debouncedSearchQuery ? highlightText(complaint.description.substring(0, 60) + '...', debouncedSearchQuery) : complaint.description.substring(0, 60) + '...'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {debouncedSearchQuery && complaint.student?.full_name ? 
-                        highlightText(complaint.student.full_name, debouncedSearchQuery) : 
-                        complaint.student?.full_name
-                      }
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {debouncedSearchQuery && complaint.student?.student_id ? 
-                        highlightText(complaint.student.student_id, debouncedSearchQuery) : 
-                        complaint.student?.student_id
-                      }
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -866,7 +845,7 @@ export default function ComplaintList({
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-center">
                       {onView && (
                         <Button

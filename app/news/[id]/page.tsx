@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { PageLayout } from '@/app/components/layout/page-layout';
 import { newsPostsApi } from '@/lib/news-api';
@@ -11,6 +11,7 @@ import Link from 'next/link';
 
 export default function NewsDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const [post, setPost] = useState<NewsPost | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -75,11 +76,11 @@ export default function NewsDetailPage() {
 
   return (
     <PageLayout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8">
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb */}
-          <nav className="mb-8">
-            <ol className="flex items-center space-x-2 text-sm text-gray-600">
+          <nav className="mb-6 sm:mb-8">
+            <ol className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 flex-wrap">
               <li>
                 <Link href="/" className="hover:text-[#359d49]">Home</Link>
               </li>
@@ -87,13 +88,13 @@ export default function NewsDetailPage() {
               <li>
                 <Link href="/news" className="hover:text-[#359d49]">News</Link>
               </li>
-              <li>/</li>
-              <li className="text-gray-900">{post.title}</li>
+              <li className="text-gray-400">/</li>
+              <li className="text-gray-900 truncate max-w-[200px] sm:max-w-none">{post.title}</li>
             </ol>
           </nav>
 
           {/* Article */}
-          <article className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <article className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
             {/* Featured Image */}
             {post.image_url && (
               <div className="aspect-video overflow-hidden">
@@ -108,10 +109,10 @@ export default function NewsDetailPage() {
             )}
 
             {/* Article Content */}
-            <div className="p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
               {/* Meta Information */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                   {post.category_id && (
                     <span className="px-3 py-1 bg-[#359d49] text-white text-sm font-medium rounded-full">
                       Category
@@ -123,21 +124,21 @@ export default function NewsDetailPage() {
                     </span>
                   )}
                 </div>
-                <div className="text-sm text-gray-500">
-                  {formatDate(post.created_at)}
-                </div>
+                                  <div className="text-xs sm:text-sm text-gray-500">
+                    {formatDate(post.created_at)}
+                  </div>
               </div>
 
               {/* Title */}
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
                 {post.title}
               </h1>
 
               {/* Excerpt */}
               {post.excerpt && (
-                <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                  {post.excerpt}
-                </p>
+                              <p className="text-lg sm:text-xl text-gray-600 mb-6 leading-relaxed font-medium">
+                {post.excerpt}
+              </p>
               )}
 
               {/* Tags */}
@@ -163,21 +164,21 @@ export default function NewsDetailPage() {
 
               {/* Article Footer */}
               <div className="mt-8 pt-6 border-t border-gray-200">
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <div className="flex items-center space-x-4">
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-4">
                     {post.allow_comments && (
                       <span>Comments enabled</span>
                     )}
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button
-                      onClick={() => window.history.back()}
+                      onClick={() => router.push('/news')}
                       className="bg-gray-600 hover:bg-gray-700 text-white"
                     >
                       Back to News
                     </Button>
                     <Button
-                      onClick={() => window.open('/news', '_blank')}
+                      onClick={() => router.push('/news')}
                       className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
                     >
                       View All News
