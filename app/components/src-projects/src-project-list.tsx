@@ -336,7 +336,7 @@ export default function SrcProjectList({
           <div className="mx-auto h-16 w-16 text-slate-300 mb-4">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+          </svg>
           </div>
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
             {searchQuery || selectedDepartment !== 'all' || selectedStatus !== 'all' ? 'No projects match your search/filter' : 'No projects found'}
@@ -355,124 +355,124 @@ export default function SrcProjectList({
           {filteredProjects.map((project) => {
             const statusConfig = getStatusColor(project.status);
             return (
-              <div
-                key={project.id}
+            <div
+              key={project.id}
                 className="group bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all duration-300 transform hover:-translate-y-1"
-              >
-                {/* Project Header */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
+            >
+              {/* Project Header */}
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
                       <h3 className="text-lg font-semibold text-slate-900 mb-3 line-clamp-2 group-hover:text-[#359d49] transition-colors duration-200">
-                        {project.title}
-                      </h3>
+                      {project.title}
+                    </h3>
                       <div className="flex items-center gap-2 mb-4 flex-wrap">
-                        <span
+                      <span
                           className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border shadow-sm"
-                          style={{
-                            backgroundColor: project.department?.color + '20',
+                        style={{
+                          backgroundColor: project.department?.color + '20',
                             color: project.department?.color,
                             borderColor: project.department?.color + '40'
-                          }}
-                        >
-                          {project.department?.name}
-                        </span>
+                        }}
+                      >
+                        {project.department?.name}
+                      </span>
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border shadow-sm ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
                           {statusConfig.icon}
-                          {getStatusLabel(project.status)}
-                        </span>
-                      </div>
+                        {getStatusLabel(project.status)}
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Project Description - Truncated */}
+                {/* Project Description - Truncated */}
                   <p className="text-slate-600 text-sm mb-6 line-clamp-3 leading-relaxed">
-                    {truncateText(project.description, 20)}
-                  </p>
+                  {truncateText(project.description, 20)}
+                </p>
 
-                  {/* Progress Bar */}
+                {/* Progress Bar */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
                       <span className="font-medium">Progress</span>
                       <span className="font-semibold">{project.progress_percentage}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-[#359d49] to-[#2a6b39] h-3 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${project.progress_percentage}%` }}
-                      ></div>
-                    </div>
                   </div>
+                    <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                    <div
+                        className="bg-gradient-to-r from-[#359d49] to-[#2a6b39] h-3 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${project.progress_percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
 
-                  {/* Project Details - Truncated */}
+                {/* Project Details - Truncated */}
                   <div className="space-y-3 text-sm text-slate-600 mb-6">
-                    {project.start_date && (
+                  {project.start_date && (
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
                           <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
                         </div>
-                        <span>Started: {formatDate(project.start_date)}</span>
-                      </div>
-                    )}
-                    
-                    {project.target_finish_date && (
+                      <span>Started: {formatDate(project.start_date)}</span>
+                    </div>
+                  )}
+                  
+                  {project.target_finish_date && (
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
                           <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                         </div>
-                        <span>Target: {formatDate(project.target_finish_date)}</span>
-                      </div>
-                    )}
+                      <span>Target: {formatDate(project.target_finish_date)}</span>
+                    </div>
+                  )}
 
-                    {project.budget_allocated && (
+                  {project.budget_allocated && (
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
                           <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                          </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
                         </div>
-                        <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
-                      </div>
-                    )}
+                      <span>Budget: K{project.budget_allocated.toLocaleString()}</span>
+                    </div>
+                  )}
 
-                    {project.team_members && project.team_members.length > 0 && (
+                  {project.team_members && project.team_members.length > 0 && (
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
                           <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        </div>
-                        <span>{project.team_members.length} team member{project.team_members.length !== 1 ? 's' : ''}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Read More Link */}
-                  <div className="pt-4 border-t border-slate-200">
-                    <Link
-                      href={`/src-projects/${project.id}`}
-                      className="inline-flex items-center text-[#359d49] hover:text-[#2a6b39] font-semibold text-sm transition-all duration-200 group/link"
-                    >
-                      Read More
-                      <svg className="w-4 h-4 ml-2 group-hover/link:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
-                    </Link>
-                  </div>
+                        </div>
+                      <span>{project.team_members.length} team member{project.team_members.length !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+                </div>
 
-                  {/* Created By */}
+                {/* Read More Link */}
+                  <div className="pt-4 border-t border-slate-200">
+                  <Link
+                    href={`/src-projects/${project.id}`}
+                      className="inline-flex items-center text-[#359d49] hover:text-[#2a6b39] font-semibold text-sm transition-all duration-200 group/link"
+                  >
+                    Read More
+                      <svg className="w-4 h-4 ml-2 group-hover/link:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+
+                {/* Created By */}
                   <div className="mt-4 pt-4 border-t border-slate-200">
                     <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span>Created by {project.created_by_user?.full_name}</span>
-                      <span>{formatDate(project.created_at)}</span>
-                    </div>
+                    <span>Created by {project.created_by_user?.full_name}</span>
+                    <span>{formatDate(project.created_at)}</span>
                   </div>
                 </div>
               </div>
+            </div>
             );
           })}
         </div>

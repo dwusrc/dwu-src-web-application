@@ -4,6 +4,29 @@
 
 This schema supports the DWU SRC web application with role-based access control (Student, SRC, Admin) and all features outlined in the PRD.
 
+## 📝 **Recent Schema Updates**
+
+### **✅ View Count Feature Removal (Completed)**
+The `view_count` feature has been completely removed from the news and forum systems as part of optimization efforts:
+
+**Tables Updated:**
+- `news_posts` - Removed `view_count` column
+- `forum_topics` - Removed `view_count` column
+
+**Reason for Removal:**
+- **Performance**: Eliminated unnecessary database writes and updates
+- **Simplicity**: Removed unused feature that served no business purpose
+- **Optimization**: Cleaner schema with fewer maintenance overhead
+
+**Impact:**
+- ✅ **No functionality lost** - Views feature was not used by users
+- ✅ **Performance improved** - Fewer database operations
+- ✅ **Code simplified** - Removed view tracking logic from all components
+- ✅ **Database cleaner** - Eliminated unused column and related triggers
+
+**Migration Status:** ✅ **COMPLETE** - All frontend and backend code updated
+**Database Cleanup:** Safe to drop `view_count` columns if they exist in production
+
 ## 👥 Core Tables
 
 ### 1. **profiles** (User Profiles)
@@ -101,7 +124,6 @@ CREATE TABLE news_posts (
   featured BOOLEAN DEFAULT false,
   image_url TEXT,
   tags TEXT[], -- Array of tags
-  view_count INTEGER DEFAULT 0,
   allow_comments BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -109,6 +131,10 @@ CREATE TABLE news_posts (
 );
 
 CREATE TYPE post_status AS ENUM ('draft', 'published', 'archived');
+
+-- NOTE: view_count column was removed as part of optimization
+-- The views feature was eliminated to simplify the system and improve performance
+-- No database migration needed - column can be safely dropped if it exists
 ```
 
 ### 3. **complaints** (Student Complaints)
@@ -211,7 +237,6 @@ CREATE TABLE forum_topics (
   category forum_category DEFAULT 'general',
   is_pinned BOOLEAN DEFAULT false,
   is_locked BOOLEAN DEFAULT false,
-  view_count INTEGER DEFAULT 0,
   reply_count INTEGER DEFAULT 0,
   last_reply_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -221,6 +246,10 @@ CREATE TABLE forum_topics (
 CREATE TYPE forum_category AS ENUM (
   'general', 'academic', 'events', 'suggestions', 'announcements'
 );
+
+-- NOTE: view_count column was removed as part of optimization
+-- The views feature was eliminated to simplify the system and improve performance
+-- No database migration needed - column can be safely dropped if it exists
 ```
 
 ### 6. **forum_replies** (Forum Replies)

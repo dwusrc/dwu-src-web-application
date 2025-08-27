@@ -36,21 +36,16 @@ type ComplaintWithRelations = Complaint & {
 
 interface DashboardStats {
   pendingComplaints: number;
-  activeProposals: number;
-  newsPosts: number;
-  recentActivity: number;
+  totalComplaints: number;
+  resolvedComplaints: number;
+  pendingSrcProjects: number;
+  totalNewsPosts: number;
+  totalReports: number;
 }
 
 
 
-interface Proposal {
-  id: string;
-  title: string;
-  student: string;
-  department: string;
-  status: 'pending' | 'under_review' | 'approved' | 'rejected';
-  createdAt: string;
-}
+// Proposal interface removed as not implemented in the application
 
 
 
@@ -58,10 +53,8 @@ export default function SRCDashboard() {
   const { profile } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
-  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
-  const [showProposalModal, setShowProposalModal] = useState(false);
 
   const [complaints, setComplaints] = useState<ComplaintWithRelations[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,13 +81,15 @@ export default function SRCDashboard() {
     return Object.values(pendingChanges).some(value => value !== undefined);
   };
 
-  // Mock data for other features
-  const stats: DashboardStats = {
-    pendingComplaints: complaints.filter(c => c.status === 'pending').length,
-    activeProposals: 8,
-    newsPosts: 15,
-    recentActivity: 25,
-  };
+  // Initialize dashboard stats
+  const [stats, setStats] = useState<DashboardStats>({
+    pendingComplaints: 0,
+    totalComplaints: 0,
+    resolvedComplaints: 0,
+    pendingSrcProjects: 0,
+    totalNewsPosts: 0,
+    totalReports: 0,
+  });
 
 
 
@@ -211,8 +206,6 @@ export default function SRCDashboard() {
   const handleUpdateComplaint = async () => {
     if (!selectedComplaint) return;
     
-    console.log('Updating complaint with pending changes:', pendingChanges);
-    
     try {
       let hasChanges = false;
       
@@ -297,57 +290,103 @@ export default function SRCDashboard() {
     }
   };
 
-  // Load complaints on component mount
-  useEffect(() => {
-    fetchComplaints();
-  }, [fetchComplaints]);
+  const handleDeleteComplaint = async (complaint: ComplaintWithRelations) => {
+    if (!confirm(`Are you sure you want to delete the complaint "${complaint.title}"? This action cannot be undone.`)) {
+      return;
+    }
 
-  const proposals: Proposal[] = [
-    {
-      id: '1',
-      title: 'Campus WiFi Upgrade Project',
-      student: 'Alice Brown',
-      department: 'Computer Science',
-      status: 'under_review',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      title: 'Student Wellness Center Initiative',
-      student: 'Bob Wilson',
-      department: 'Health Sciences',
-      status: 'pending',
-      createdAt: '2024-01-14',
-    },
-    {
-      id: '3',
-      title: 'Library Extension Proposal',
-      student: 'Carol Davis',
-      department: 'Education',
-      status: 'approved',
-      createdAt: '2024-01-13',
-    },
-  ];
+    try {
+      const response = await fetch(`/api/complaints/${complaint.id}`, {
+        method: 'DELETE',
+      });
 
+      if (!response.ok) {
+        throw new Error('Failed to delete complaint');
+      }
 
-
-
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'closed': return 'bg-gray-100 text-gray-800';
-      case 'under_review': return 'bg-purple-100 text-purple-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'published': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      case 'archived': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      // Refresh complaints and stats
+      await fetchComplaints();
+      await fetchDashboardStats();
+      
+      alert('Complaint deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting complaint:', error);
+      alert(`Failed to delete complaint: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
+
+  // Fetch dashboard statistics
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      // Fetch complaints count
+      const complaintsResponse = await fetch('/api/complaints?limit=1000');
+      if (complaintsResponse.ok) {
+        const complaintsData = await complaintsResponse.json();
+        const totalComplaints = complaintsData.complaints?.length || 0;
+        const pendingComplaints = complaintsData.complaints?.filter((c: { status: string }) => c.status === 'pending').length || 0;
+        const resolvedComplaints = complaintsData.complaints?.filter((c: { status: string }) => c.status === 'resolved' || c.status === 'closed').length || 0;
+        
+        setStats(prev => ({
+          ...prev,
+          totalComplaints,
+          pendingComplaints,
+          resolvedComplaints,
+        }));
+      }
+
+      // Fetch SRC projects count
+      const projectsResponse = await fetch('/api/src-projects/src');
+      if (projectsResponse.ok) {
+        const projectsData = await projectsResponse.json();
+        const pendingSrcProjects = projectsData.projects?.filter((p: { approval_status: string }) => p.approval_status === 'pending').length || 0;
+        
+        setStats(prev => ({
+          ...prev,
+          pendingSrcProjects,
+        }));
+      }
+
+      // Fetch news count
+      const newsResponse = await fetch('/api/news/posts?limit=1000');
+      if (newsResponse.ok) {
+        const newsData = await newsResponse.json();
+        const totalNewsPosts = newsData.posts?.length || 0;
+        
+        setStats(prev => ({
+          ...prev,
+          totalNewsPosts,
+        }));
+      }
+
+      // Fetch reports count
+      const reportsResponse = await fetch('/api/reports?limit=1000');
+      if (reportsResponse.ok) {
+        const reportsData = await reportsResponse.json();
+        const totalReports = reportsData.reports?.length || 0;
+        
+        setStats(prev => ({
+          ...prev,
+          totalReports,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  }, []);
+
+  // Load complaints and stats on component mount
+  useEffect(() => {
+    fetchComplaints();
+    fetchDashboardStats();
+  }, [fetchComplaints, fetchDashboardStats]);
+
+  // Remove mock proposals data - not implemented in the application
+
+
+
+
+
+  // getStatusColor function removed as no longer used
 
   return (
     <ProtectedRoute requiredRole="src">
@@ -355,30 +394,40 @@ export default function SRCDashboard() {
         <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#2a6b39]">SRC Dashboard</h1>
-            <p className="text-gray-600 mt-2">Manage complaints, proposals, news, and student services</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-[#2a6b39]">SRC Dashboard</h1>
+                <p className="text-gray-600 mt-2">Manage complaints, SRC projects, news, and reports</p>
+                {profile?.src_department && (
+                  <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                    <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+                    {profile.src_department} Department
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 sm:mt-0">
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Welcome back,</p>
+                  <p className="text-lg font-semibold text-gray-900">{profile?.full_name || 'SRC Member'}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Navigation Tabs */}
           <div className="mb-6">
-            <nav className="flex overflow-x-auto scrollbar-hide border-b border-gray-200">
-              <div className="flex space-x-6 min-w-max px-4">
+            <nav className="flex overflow-x-auto scrollbar-hide border-b border-gray-200 bg-white rounded-t-lg">
+              <div className="flex space-x-1 min-w-max px-2 sm:px-4">
                 {[
                   { id: 'overview', name: 'Overview', icon: '📊', shortName: 'Overview' },
                   { id: 'complaints', name: 'Complaints', icon: '⚠️', shortName: 'Complaints' },
-                  { id: 'analytics', name: 'Analytics', icon: '📈', shortName: 'Analytics', href: '/dashboard/src/analytics' },
-                  { id: 'proposals', name: 'Proposals', icon: '📋', shortName: 'Proposals' },
                   { id: 'src-projects', name: 'SRC Projects', icon: '🚀', shortName: 'Projects' },
                   { id: 'reports', name: 'Reports', icon: '📄', shortName: 'Reports' },
-
                   { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
-                  { id: 'communication', name: 'Communication', icon: '💬', shortName: 'Comm' },
-                  { id: 'services', name: 'Student Services', icon: '👥', shortName: 'Services' },
                 ].map((tab: { id: string; name: string; icon: string; shortName: string; href?: string }) => (
                   <button
                     key={tab.id}
                     onClick={() => {
-                      console.log('🖱️ Tab clicked:', tab.id);
                       if ('href' in tab && tab.href) {
                         // Navigate to external page
                         window.location.href = tab.href;
@@ -387,13 +436,13 @@ export default function SRCDashboard() {
                         setActiveTab(tab.id);
                       }
                     }}
-                    className={`py-2 px-3 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    className={`py-3 px-4 border-b-2 font-medium text-sm whitespace-nowrap transition-all duration-200 rounded-t-lg ${
                       activeTab === tab.id
-                        ? 'border-[#359d49] text-[#359d49]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-[#359d49] text-[#359d49] bg-[#359d49]/5'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
-                    <span className="mr-1 sm:mr-2">{tab.icon}</span>
+                    <span className="mr-2">{tab.icon}</span>
                     <span className="hidden sm:inline">{tab.name}</span>
                     <span className="sm:hidden">{tab.shortName}</span>
                   </button>
@@ -407,9 +456,9 @@ export default function SRCDashboard() {
             <div className="space-y-6">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
                   <div className="flex items-center">
-                    <div className="p-2 bg-red-100 rounded-lg">
+                    <div className="p-3 bg-red-100 rounded-xl">
                       <span className="text-2xl">⚠️</span>
                     </div>
                     <div className="ml-4">
@@ -419,98 +468,92 @@ export default function SRCDashboard() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
                   <div className="flex items-center">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <span className="text-2xl">📋</span>
+                    <div className="p-3 bg-blue-100 rounded-xl">
+                      <span className="text-2xl">📊</span>
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Active Proposals</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.activeProposals}</p>
+                      <p className="text-sm font-medium text-gray-600">Total Complaints</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalComplaints}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
                   <div className="flex items-center">
-                    <div className="p-2 bg-green-100 rounded-lg">
+                    <div className="p-3 bg-green-100 rounded-xl">
+                      <span className="text-2xl">✅</span>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Resolved</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.resolvedComplaints}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-yellow-100 rounded-xl">
+                      <span className="text-2xl">⏳</span>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Pending Projects</p>
+                      <p className="text-2xl font-bold text-yellow-600">{stats.pendingSrcProjects}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center">
+                    <div className="p-3 bg-purple-100 rounded-xl">
                       <span className="text-2xl">📢</span>
                     </div>
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">News Posts</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.newsPosts}</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalNewsPosts}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
                   <div className="flex items-center">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <span className="text-2xl">📈</span>
+                    <div className="p-3 bg-indigo-100 rounded-xl">
+                      <span className="text-2xl">📄</span>
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Recent Activity</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.recentActivity}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-yellow-100 rounded-lg">
-                      <span className="text-2xl">⏳</span>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Pending SRC Projects</p>
-                      <p className="text-2xl font-bold text-yellow-600">-</p>
+                      <p className="text-sm font-medium text-gray-600">Reports</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalReports}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   <Button
                     onClick={() => setShowNewsModal(true)}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    className="bg-gradient-to-r from-[#359d49] to-[#2a6b39] hover:from-[#2a6b39] hover:to-[#1a4a2a] text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
                   >
                     📢 Create News
                   </Button>
                   <Button
                     onClick={() => setActiveTab('complaints')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
                   >
                     ⚠️ View Complaints
                   </Button>
                   <Button
-                    onClick={() => setActiveTab('proposals')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                  >
-                    📋 Review Props
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab('communication')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                  >
-                    💬 Comm Center
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab('services')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
-                  >
-                    👥 Student Dir
-                  </Button>
-                  <Button
                     onClick={() => setActiveTab('src-projects')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
                   >
                     🚀 SRC Projects
                   </Button>
                   <Button
-                    onClick={() => setActiveTab('services')}
-                    className="bg-[#359d49] hover:bg-[#2a6b39] text-white"
+                    onClick={() => setActiveTab('reports')}
+                    className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
                   >
                     📊 Reports
                   </Button>
@@ -518,25 +561,38 @@ export default function SRCDashboard() {
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-red-400 rounded-full mr-3"></span>
-                    New complaint from John Doe (Computer Science) - 2h ago
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-                    Proposal &quot;Campus WiFi Upgrade&quot; approved - 4h ago
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full mr-3"></span>
-                    News post &quot;Semester Schedule&quot; published - 6h ago
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="w-2 h-2 bg-yellow-400 rounded-full mr-3"></span>
-                    Complaint #123 resolved - 1 day ago
-                  </div>
+                  {stats.pendingComplaints > 0 && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <span className="w-2 h-2 bg-red-400 rounded-full mr-3"></span>
+                      {stats.pendingComplaints} pending complaint{stats.pendingComplaints !== 1 ? 's' : ''} require{stats.pendingComplaints !== 1 ? '' : 's'} attention
+                    </div>
+                  )}
+                  {stats.pendingSrcProjects > 0 && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <span className="w-2 h-2 bg-yellow-400 rounded-full mr-3"></span>
+                      {stats.pendingSrcProjects} SRC project{stats.pendingSrcProjects !== 1 ? 's' : ''} pending approval
+                    </div>
+                  )}
+                  {stats.totalNewsPosts > 0 && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-3"></span>
+                      {stats.totalNewsPosts} news post{stats.totalNewsPosts !== 1 ? 's' : ''} published
+                    </div>
+                  )}
+                  {stats.totalReports > 0 && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <span className="w-2 h-2 bg-purple-400 rounded-full mr-3"></span>
+                      {stats.totalReports} report{stats.totalReports !== 1 ? 's' : ''} available for download
+                    </div>
+                  )}
+                  {stats.pendingComplaints === 0 && stats.pendingSrcProjects === 0 && (
+                    <div className="text-sm text-gray-500 italic">
+                      All caught up! No pending items require attention.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -552,90 +608,19 @@ export default function SRCDashboard() {
               <ComplaintList
                 complaints={complaints}
                 onView={(complaint) => handleViewComplaint(complaint as ComplaintWithRelations)}
+                onDelete={handleDeleteComplaint}
                 currentPage={currentPage}
                 totalCount={totalCount}
                 onPageChange={setCurrentPage}
                 sortBy="created_at"
                 sortOrder="desc"
-
               />
             </div>
           )}
 
 
 
-          {/* Proposals Tab */}
-          {activeTab === 'proposals' && (
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-900">Proposal Management</h2>
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
-                  <select className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] sm:w-auto">
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="under_review">Under Review</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Search proposals..."
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49] flex-1 min-w-0"
-                  />
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                        <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                        <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {proposals.map((proposal) => (
-                        <tr key={proposal.id} className="hover:bg-gray-50">
-                          <td className="px-3 sm:px-6 py-4 text-sm font-medium text-gray-900">
-                            <div>
-                              <div className="font-medium">{proposal.title}</div>
-                              <div className="text-xs text-gray-500 md:hidden">
-                                Student: {proposal.student} • Date: {proposal.createdAt}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">{proposal.student}</td>
-                          <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">{proposal.department}</td>
-                          <td className="px-3 sm:px-6 py-4">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(proposal.status)}`}>
-                              {proposal.status.replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className="hidden sm:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">{proposal.createdAt}</td>
-                          <td className="px-3 sm:px-6 py-4 text-sm font-medium">
-                            <Button
-                              onClick={() => {
-                                setSelectedProposal(proposal);
-                                setShowProposalModal(true);
-                              }}
-                              className="bg-[#359d49] hover:bg-[#2a6b39] text-white text-xs px-2 sm:px-3 py-1"
-                            >
-                              Review
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Proposals Tab - Removed as not implemented in the application */}
 
           {/* SRC Projects Tab */}
           {activeTab === 'src-projects' && (
@@ -672,132 +657,8 @@ export default function SRCDashboard() {
             <NewsManagement />
           )}
 
-          {/* Communication Tab */}
-          {activeTab === 'communication' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Communication Center</h2>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <p className="text-gray-600">Communication features coming soon...</p>
-              </div>
-            </div>
-          )}
-
-          {/* Student Services Tab */}
-          {activeTab === 'services' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Student Services</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Student Directory */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">👥 Student Directory</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Total Students</span>
-                      <span className="text-sm font-medium text-gray-900">1,247</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Active Students</span>
-                      <span className="text-sm font-medium text-gray-900">1,180</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      View Directory
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Department Management */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🏢 Department Management</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Total Departments</span>
-                      <span className="text-sm font-medium text-gray-900">8</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">SRC Representatives</span>
-                      <span className="text-sm font-medium text-gray-900">24</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Manage Departments
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Event Planning */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📅 Event Planning</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Upcoming Events</span>
-                      <span className="text-sm font-medium text-gray-900">5</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Past Events</span>
-                      <span className="text-sm font-medium text-gray-900">12</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Plan Event
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Reports & Analytics */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Reports & Analytics</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Monthly Reports</span>
-                      <span className="text-sm font-medium text-gray-900">3</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Analytics Dashboard</span>
-                      <span className="text-sm font-medium text-gray-900">Active</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      View Reports
-                    </Button>
-                  </div>
-                </div>
-
-                {/* File Management */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">📁 File Management</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Total Files</span>
-                      <span className="text-sm font-medium text-gray-900">156</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Storage Used</span>
-                      <span className="text-sm font-medium text-gray-900">2.3GB</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Manage Files
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Settings */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">⚙️ Settings</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">System Status</span>
-                      <span className="text-sm font-medium text-green-600">Online</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Last Backup</span>
-                      <span className="text-sm font-medium text-gray-900">2h ago</span>
-                    </div>
-                    <Button className="w-full bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      System Settings
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Communication Tab - Removed as not implemented in the application */}
+          {/* Student Services Tab - Removed as not implemented in the application */}
 
           {/* Modals */}
           {/* News Creation Modal */}
@@ -1113,59 +974,7 @@ export default function SRCDashboard() {
             </div>
           )}
 
-          {/* Proposal Review Modal */}
-          {showProposalModal && selectedProposal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Proposal Review</h3>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{selectedProposal.title}</h4>
-                    <p className="text-sm text-gray-600 mt-1">Submitted by {selectedProposal.student} from {selectedProposal.department}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Proposal Details</label>
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <p className="text-sm text-gray-700">
-                        This is a placeholder for the full proposal content. In the real implementation, 
-                        this would show the complete proposal details including objectives, budget, timeline, etc.
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Review Decision</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]">
-                      <option value="pending">Pending</option>
-                      <option value="under_review">Under Review</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Review Notes</label>
-                    <textarea
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-                      placeholder="Enter your review notes and feedback..."
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button
-                      onClick={() => setShowProposalModal(false)}
-                      className="bg-gray-300 hover:bg-gray-400 text-gray-700"
-                    >
-                      Cancel
-                    </Button>
-                    <Button className="bg-[#359d49] hover:bg-[#2a6b39] text-white">
-                      Submit Review
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Proposal Review Modal - Removed as not implemented in the application */}
         </div>
       </PageLayout>
     </ProtectedRoute>

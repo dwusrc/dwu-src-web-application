@@ -94,7 +94,7 @@ export async function PUT(
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, src_department')
       .eq('id', user.id)
       .single();
 
@@ -218,7 +218,7 @@ export async function DELETE(
     // Get user profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, src_department')
       .eq('id', user.id)
       .single();
 
@@ -239,10 +239,36 @@ export async function DELETE(
       return NextResponse.json({ error: 'Complaint not found' }, { status: 404 });
     }
 
-    // Only admins and the complaint owner can delete
-    const canDelete = 
-      profile.role === 'admin' ||
-      (profile.role === 'student' && existingComplaint.student_id === user.id);
+    // Check if user can delete this complaint
+    let canDelete = false;
+    
+    if (profile.role === 'admin') {
+      // Admins can delete any complaint
+      canDelete = true;
+    } else if (profile.role === 'student' && existingComplaint.student_id === user.id) {
+      // Students can delete their own complaints
+      canDelete = true;
+    } else if (profile.role === 'src') {
+      // SRC members can delete complaints targeting their department
+      const { data: complaintWithDepts } = await supabase
+        .from('complaints')
+        .select('departments_selected')
+        .eq('id', resolvedParams.id)
+        .single();
+      
+      if (complaintWithDepts?.departments_selected) {
+        // Get user's department ID
+        const { data: userDept } = await supabase
+          .from('src_departments')
+          .select('id')
+          .eq('name', profile.src_department)
+          .single();
+        
+        if (userDept && complaintWithDepts.departments_selected.includes(userDept.id)) {
+          canDelete = true;
+        }
+      }
+    }
 
     if (!canDelete) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

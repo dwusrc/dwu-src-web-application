@@ -7,6 +7,7 @@ import { ComplaintPriority, ComplaintStatus, ComplaintWithRelations } from '@/ty
 interface ComplaintListProps {
   complaints: ComplaintWithRelations[];
   onView: (complaint: ComplaintWithRelations) => void;
+  onDelete?: (complaint: ComplaintWithRelations) => void;
   currentPage: number;
   totalCount: number;
   onPageChange: (page: number) => void;
@@ -17,6 +18,7 @@ interface ComplaintListProps {
 export default function ComplaintList({
   complaints,
   onView,
+  onDelete,
   currentPage,
   totalCount,
   onPageChange,
@@ -341,6 +343,16 @@ export default function ComplaintList({
       }
     }
   }, [selectedComplaints.size]);
+
+  const handleDeleteComplaint = useCallback(async (complaint: ComplaintWithRelations, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!onDelete) return;
+    
+    if (confirm(`Are you sure you want to delete the complaint "${complaint.title}"? This action cannot be undone.`)) {
+      onDelete(complaint);
+    }
+  }, [onDelete]);
 
   const sortedComplaints = useMemo(() => {
     const priorityOrder = { low: 1, medium: 2, high: 3, urgent: 4 };
@@ -932,13 +944,21 @@ export default function ComplaintList({
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-center">
+                    <div className="flex justify-center gap-2">
                       {onView && (
                         <Button
                           onClick={() => onView(complaint)}
                           className="text-xs bg-blue-100 border border-blue-200 text-blue-700 hover:bg-blue-200 hover:border-blue-300 px-3 py-2 rounded-lg shadow-sm transition-all duration-200"
                         >
                           View
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button
+                          onClick={(e) => handleDeleteComplaint(complaint, e)}
+                          className="text-xs bg-red-100 border border-red-200 text-red-700 hover:bg-red-200 hover:border-red-300 px-3 py-2 rounded-lg shadow-sm transition-all duration-200"
+                        >
+                          Delete
                         </Button>
                       )}
                     </div>

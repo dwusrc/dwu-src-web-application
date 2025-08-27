@@ -180,21 +180,21 @@ export default function NewsDisplay({
             {/* Category Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => {
-                  setSelectedCategory(e.target.value);
-                  setCurrentPage(1);
-                }}
+          <select
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setCurrentPage(1);
+            }}
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49] transition-colors duration-200 bg-gray-50 hover:bg-white"
-              >
-                <option value="all">All Categories</option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.name}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+          >
+            <option value="all">All Categories</option>
+            {categories.map(category => (
+              <option key={category.id} value={category.name}>
+                {category.name}
+              </option>
+            ))}
+          </select>
             </div>
 
             {/* Time Period Filter */}
@@ -274,7 +274,7 @@ export default function NewsDisplay({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                  </span>
+          </span>
                 )}
               </div>
             )}
@@ -305,11 +305,11 @@ export default function NewsDisplay({
               Showing {posts.length} of {totalPosts} posts
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post) => (
-              <NewsCard key={post.id} post={post} getCategoryName={getCategoryName} getCategoryColor={getCategoryColor} formatDate={formatDate} />
-            ))}
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {posts.map((post) => (
+          <NewsCard key={post.id} post={post} getCategoryName={getCategoryName} getCategoryColor={getCategoryColor} formatDate={formatDate} />
+        ))}
+      </div>
         </div>
       )}
 
@@ -347,29 +347,29 @@ export default function NewsDisplay({
             </div>
             
             <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
+          <Button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
                 variant="outline"
                 className="px-4 py-2 text-gray-600 border-gray-300 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
+          >
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Previous
-              </Button>
-              
-              <Button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
+            Previous
+          </Button>
+          
+          <Button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
                 variant="outline"
                 className="px-4 py-2 text-gray-600 border-gray-300 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                Next
+          >
+            Next
                 <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </Button>
+          </Button>
             </div>
           </div>
         </div>
@@ -464,7 +464,7 @@ function NewsCard({ post, getCategoryName, getCategoryColor, formatDate }: NewsC
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>{formatDate(post.created_at)}</span>
+            <span>{formatDate(post.created_at)}</span>
             </div>
 
           </div>
