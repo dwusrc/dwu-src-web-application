@@ -16,7 +16,6 @@ const ComplaintView = lazy(() => import('@/app/components/forms/complaint-view')
 const SrcProjectList = lazy(() => import('@/app/components/src-projects/src-project-list'));
 const ReportsManagement = lazy(() => import('@/app/components/reports/reports-management'));
 
-
 // Loading component for lazy-loaded components
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center p-8">
@@ -26,75 +25,36 @@ const LoadingSpinner = () => (
 
 interface DashboardStats {
   myComplaints: number;
-  myProposals: number;
-  newsUpdates: number;
+  pendingComplaints: number;
+  resolvedComplaints: number;
+  availableReports: number;
+  srcProjects: number;
 }
-
-interface Proposal {
-  id: string;
-  title: string;
-  status: 'pending' | 'under_review' | 'approved' | 'rejected';
-  createdAt: string;
-  feedback?: string;
-}
-
-
 
 export default function StudentDashboard() {
-  const { session } = useSession();
+  const { session, profile } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
   const [showComplaintModal, setShowComplaintModal] = useState(false);
-  const [showProposalModal, setShowProposalModal] = useState(false);
-
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithRelations | null>(null);
   const [complaints, setComplaints] = useState<ComplaintWithRelations[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
-
-  // Mock data for other features
-  const stats: DashboardStats = {
-    myComplaints: complaints.length,
-    myProposals: 2,
-    newsUpdates: 5,
-  };
-
-  const proposals: Proposal[] = [
-    {
-      id: '1',
-      title: 'Campus WiFi Upgrade Project',
-      status: 'under_review',
-      createdAt: '2024-01-15',
-      feedback: 'Your proposal is being reviewed by the technical committee.',
-    },
-    {
-      id: '2',
-      title: 'Student Lounge Renovation',
-      status: 'pending',
-      createdAt: '2024-01-14',
-    },
-  ];
-
-
+  const [stats, setStats] = useState<DashboardStats>({
+    myComplaints: 0,
+    pendingComplaints: 0,
+    resolvedComplaints: 0,
+    availableReports: 0,
+    srcProjects: 0,
+  });
 
   // Transform complaint data to match component expectations
   const transformComplaints = (complaints: unknown[]): ComplaintWithRelations[] => {
-    return complaints.map((complaint: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-      ...complaint,
-      student: complaint.student ? {
-        id: complaint.student.id,
-        full_name: complaint.student.full_name,
-        student_id: complaint.student.student_id,
-        department: complaint.student.department,
-        year_level: complaint.student.year_level,
-      } : undefined,
-      assigned_to: complaint.assigned_to ? {
-        id: complaint.assigned_to.id,
-        full_name: complaint.assigned_to.full_name,
-        role: complaint.assigned_to.role,
-      } : undefined,
-    }));
+    return complaints.map((complaint: unknown) => {
+      const c = complaint as ComplaintWithRelations;
+      return c;
+    });
   };
 
   const fetchComplaints = useCallback(async (page: number = 1) => {
@@ -109,6 +69,29 @@ export default function StudentDashboard() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching complaints:', error);
+    }
+  }, []);
+
+  // Fetch dashboard statistics
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      // Fetch complaints count
+      const complaintsResponse = await fetch('/api/complaints?limit=1000');
+      if (complaintsResponse.ok) {
+        const complaintsData = await complaintsResponse.json();
+        const totalComplaints = complaintsData.complaints?.length || 0;
+        const pendingComplaints = complaintsData.complaints?.filter((c: { status: string }) => c.status === 'pending').length || 0;
+        const resolvedComplaints = complaintsData.complaints?.filter((c: { status: string }) => c.status === 'resolved' || c.status === 'closed').length || 0;
+        
+        setStats(prev => ({
+          ...prev,
+          myComplaints: totalComplaints,
+          pendingComplaints,
+          resolvedComplaints,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
     }
   }, []);
 
@@ -134,6 +117,7 @@ export default function StudentDashboard() {
 
       setShowComplaintModal(false);
       fetchComplaints(currentPage);
+      fetchDashboardStats(); // Refresh stats
     } catch (error) {
       console.error('Error submitting complaint:', error);
     } finally {
@@ -176,6 +160,7 @@ export default function StudentDashboard() {
       setEditMode(false);
       setSelectedComplaint(null);
       fetchComplaints(currentPage);
+      fetchDashboardStats(); // Refresh stats
     } catch (error) {
       console.error('Error updating complaint:', error);
     } finally {
@@ -202,6 +187,7 @@ export default function StudentDashboard() {
 
       setSelectedComplaint(null);
       fetchComplaints(currentPage);
+      fetchDashboardStats(); // Refresh stats
     } catch (error) {
       console.error('Error deleting complaint:', error);
     }
@@ -213,6 +199,11 @@ export default function StudentDashboard() {
       fetchComplaints();
     }
   }, [activeTab, fetchComplaints]);
+
+  // Fetch dashboard stats on component mount
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
 
   // Initialize mobile navigation arrows
   useEffect(() => {
@@ -253,10 +244,8 @@ export default function StudentDashboard() {
     { id: 'overview', name: 'Overview', shortName: 'Overview', icon: '📊' },
     { id: 'news', name: 'News & Updates', shortName: 'News', icon: '📢' },
     { id: 'complaints', name: 'My Complaints', shortName: 'Complaints', icon: '⚠️' },
-    { id: 'proposals', name: 'My Proposals', shortName: 'Proposals', icon: '📋' },
     { id: 'src-projects', name: 'SRC Projects', shortName: 'Projects', icon: '🚀' },
     { id: 'reports', name: 'Reports', shortName: 'Reports', icon: '📄' },
-    { id: 'forums', name: 'Forums', shortName: 'Forums', icon: '📝' },
     { id: 'profile', name: 'Profile', shortName: 'Profile', icon: '👤' },
   ];
 
@@ -268,7 +257,7 @@ export default function StudentDashboard() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
             <p className="mt-2 text-gray-600">
-              Welcome back, {session?.user?.user_metadata?.full_name || 'Student'}!
+              Welcome back, {profile?.full_name || session?.user?.user_metadata?.full_name || 'Student'}!
             </p>
           </div>
 
@@ -385,81 +374,147 @@ export default function StudentDashboard() {
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-center">
-                    <div className="p-2 bg-red-100 rounded-lg">
+                    <div className="p-3 bg-red-50 rounded-xl">
                       <span className="text-2xl">⚠️</span>
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">My Complaints</p>
+                      <p className="text-sm font-medium text-gray-600">Total Complaints</p>
                       <p className="text-2xl font-bold text-gray-900">{stats.myComplaints}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-center">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <span className="text-2xl">📋</span>
+                    <div className="p-3 bg-yellow-50 rounded-xl">
+                      <span className="text-2xl">⏳</span>
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">My Proposals</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.myProposals}</p>
+                      <p className="text-sm font-medium text-gray-600">Pending</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.pendingComplaints}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-center">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <span className="text-2xl">📢</span>
+                    <div className="p-3 bg-green-50 rounded-xl">
+                      <span className="text-2xl">✅</span>
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">News Updates</p>
-                      <p className="text-2xl font-bold text-gray-900">{stats.newsUpdates}</p>
+                      <p className="text-sm font-medium text-gray-600">Resolved</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.resolvedComplaints}</p>
                     </div>
                   </div>
                 </div>
-
-
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button
                     onClick={() => setShowComplaintModal(true)}
-                    className="w-full bg-red-600 hover:bg-red-700"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
                   >
-                    Submit Complaint
+                    <span className="mr-2">📝</span>
+                    Submit New Complaint
                   </Button>
                   <Button
-                    onClick={() => setShowProposalModal(true)}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setActiveTab('news')}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
                   >
-                    Submit Proposal
+                    <span className="mr-2">📢</span>
+                    View Latest News
                   </Button>
-
                 </div>
               </div>
 
-              {/* Recent Activity */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
-                <div className="space-y-4">
-                  {proposals.map((proposal) => (
-                    <div key={proposal.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{proposal.title}</h3>
-                        <p className="text-sm text-gray-600">Status: {proposal.status}</p>
+              {/* Recent Complaints */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Recent Complaints</h2>
+                  <Button
+                    onClick={() => setActiveTab('complaints')}
+                    variant="outline"
+                    className="text-[#359d49] border-[#359d49] hover:bg-[#359d49] hover:text-white"
+                  >
+                    View All
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {complaints.slice(0, 3).map((complaint) => (
+                    <div key={complaint.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 truncate">{complaint.title}</h3>
+                        <p className="text-sm text-gray-600 capitalize">Status: {complaint.status.replace('_', ' ')}</p>
                       </div>
-                      <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                        {proposal.status}
+                      <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
+                        complaint.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        complaint.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                        complaint.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                        complaint.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {complaint.status.replace('_', ' ')}
                       </span>
                     </div>
                   ))}
+                  {complaints.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <span className="text-4xl mb-2 block">📝</span>
+                      <p>No complaints yet</p>
+                      <p className="text-sm">Submit your first complaint to get started</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Links */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+                  <div className="text-center">
+                    <span className="text-3xl mb-3 block">🚀</span>
+                    <h3 className="font-semibold text-blue-900 mb-2">SRC Projects</h3>
+                    <p className="text-blue-700 text-sm mb-4">View approved student initiatives and projects</p>
+                    <Button
+                      onClick={() => setActiveTab('src-projects')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Explore Projects
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+                  <div className="text-center">
+                    <span className="text-3xl mb-3 block">📄</span>
+                    <h3 className="font-semibold text-green-900 mb-2">Reports</h3>
+                    <p className="text-green-700 text-sm mb-4">Access monthly reports and documents</p>
+                    <Button
+                      onClick={() => setActiveTab('reports')}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      View Reports
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
+                  <div className="text-center">
+                    <span className="text-3xl mb-3 block">👤</span>
+                    <h3 className="font-semibold text-purple-900 mb-2">Profile</h3>
+                    <p className="text-purple-700 text-sm mb-4">Manage your account and preferences</p>
+                    <Button
+                      onClick={() => setActiveTab('profile')}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      Edit Profile
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -496,47 +551,9 @@ export default function StudentDashboard() {
                   onPageChange={setCurrentPage}
                   sortBy="created_at"
                   sortOrder="desc"
-
                 />
               </div>
             </Suspense>
-          )}
-
-          {/* Proposals Tab */}
-          {activeTab === 'proposals' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">My Proposals</h2>
-                <Button
-                  onClick={() => setShowProposalModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Submit New Proposal
-                </Button>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="space-y-4">
-                  {proposals.map((proposal) => (
-                    <div key={proposal.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{proposal.title}</h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Submitted: {new Date(proposal.createdAt).toLocaleDateString()}
-                          </p>
-                          {proposal.feedback && (
-                            <p className="text-sm text-gray-600 mt-2">{proposal.feedback}</p>
-                          )}
-                        </div>
-                        <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                          {proposal.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           )}
 
           {/* SRC Projects Tab */}
@@ -568,26 +585,16 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* Forums Tab */}
-          {activeTab === 'forums' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Discussion Forums</h2>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <p className="text-gray-600">Forum functionality coming soon...</p>
-              </div>
-            </div>
-          )}
-
           {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Full Name</label>
                     <p className="mt-1 text-sm text-gray-900">
-                      {session?.user?.user_metadata?.full_name || 'Not set'}
+                      {profile?.full_name || session?.user?.user_metadata?.full_name || 'Not set'}
                     </p>
                   </div>
                   <div>
@@ -597,7 +604,19 @@ export default function StudentDashboard() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Student ID</label>
                     <p className="mt-1 text-sm text-gray-900">
-                      {session?.user?.user_metadata?.student_id || 'Not set'}
+                      {profile?.student_id || session?.user?.user_metadata?.student_id || 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Department</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {profile?.department || 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Year Level</label>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {profile?.year_level ? `Year ${profile.year_level}` : 'Not set'}
                     </p>
                   </div>
                 </div>
@@ -681,31 +700,6 @@ export default function StudentDashboard() {
             </div>
           </div>
         )}
-
-        {/* Proposal Modal */}
-        {showProposalModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Submit New Proposal</h3>
-                  <button
-                    onClick={() => setShowProposalModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <span className="sr-only">Close</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <p className="text-gray-600">Proposal form coming soon...</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-
       </PageLayout>
     </ProtectedRoute>
   );
