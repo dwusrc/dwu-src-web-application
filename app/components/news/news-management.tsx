@@ -46,7 +46,6 @@ export default function NewsManagement() {
     featured?: boolean;
     image_url?: string;
     tags?: string[];
-    allow_comments?: boolean;
   }) => {
     try {
       const newPost = await newsPostsApi.createPost(postData);
@@ -292,7 +291,6 @@ interface NewsPostModalProps {
     featured?: boolean;
     image_url?: string;
     tags?: string[];
-    allow_comments?: boolean;
   }) => void;
   onClose: () => void;
 }
@@ -307,7 +305,6 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
     featured: boolean;
     image_url: string;
     tags: string[];
-    allow_comments: boolean;
   }>({
     title: post?.title || '',
     content: post?.content || '',
@@ -316,8 +313,7 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
     status: post?.status || 'draft',
     featured: post?.featured || false,
     image_url: post?.image_url || '',
-    tags: post?.tags || [],
-    allow_comments: post?.allow_comments ?? true
+    tags: post?.tags || []
   });
   const [uploading, setUploading] = useState(false);
 
@@ -468,15 +464,7 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
               <span className="text-sm text-gray-700">Featured Post</span>
             </label>
 
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={formData.allow_comments}
-                onChange={(e) => setFormData(prev => ({ ...prev, allow_comments: e.target.checked }))}
-                className="mr-2"
-              />
-              <span className="text-sm text-gray-700">Allow Comments</span>
-            </label>
+
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

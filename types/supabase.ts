@@ -87,8 +87,6 @@ export interface NewsPost {
   featured: boolean;
   image_url?: string;
   tags?: string[];
-
-  allow_comments: boolean;
   created_at: string;
   updated_at: string;
   published_at: string;

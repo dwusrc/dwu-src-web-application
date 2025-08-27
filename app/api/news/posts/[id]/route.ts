@@ -104,8 +104,7 @@ export async function PUT(
       status,
       featured,
       image_url,
-      tags,
-      allow_comments
+      tags
     } = await request.json();
 
     const updateData: Record<string, unknown> = {};
@@ -117,7 +116,6 @@ export async function PUT(
     if (featured !== undefined) updateData.featured = featured;
     if (image_url !== undefined) updateData.image_url = image_url;
     if (tags !== undefined) updateData.tags = tags;
-    if (allow_comments !== undefined) updateData.allow_comments = allow_comments;
 
     // Set published_at if status is changing to published
     if (status === 'published') {

@@ -124,7 +124,6 @@ CREATE TABLE news_posts (
   featured BOOLEAN DEFAULT false,
   image_url TEXT,
   tags TEXT[], -- Array of tags
-  allow_comments BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -134,6 +133,10 @@ CREATE TYPE post_status AS ENUM ('draft', 'published', 'archived');
 
 -- NOTE: view_count column was removed as part of optimization
 -- The views feature was eliminated to simplify the system and improve performance
+-- No database migration needed - column can be safely dropped if it exists
+
+-- NOTE: allow_comments column was removed as part of simplification
+-- The comment feature was never implemented - only the boolean flag existed
 -- No database migration needed - column can be safely dropped if it exists
 ```
 

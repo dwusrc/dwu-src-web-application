@@ -74,7 +74,6 @@ export const newsPostsApi = {
     featured?: boolean;
     image_url?: string;
     tags?: string[];
-    allow_comments?: boolean;
   }): Promise<NewsPost> {
     const response = await fetch('/api/news/posts', {
       method: 'POST',
