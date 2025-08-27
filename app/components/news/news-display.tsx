@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { NewsPost, NewsCategory } from '@/types/supabase';
 import { newsPostsApi, newsCategoriesApi } from '@/lib/news-api';
@@ -25,15 +25,12 @@ export default function NewsDisplay({
   const [categories, setCategories] = useState<NewsCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(category || 'all');
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory, currentPage, limit]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const offset = (currentPage - 1) * limit;
@@ -41,6 +38,8 @@ export default function NewsDisplay({
       const postsData = await newsPostsApi.getPosts({
         category: selectedCategory !== 'all' ? selectedCategory : undefined,
         featured: featured,
+        timePeriod: selectedTimePeriod !== 'all' ? selectedTimePeriod : undefined,
+        search: searchQuery.trim() || undefined,
         limit,
         offset
       });
@@ -52,7 +51,7 @@ export default function NewsDisplay({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, selectedTimePeriod, searchQuery, currentPage, limit, featured]);
 
   const loadCategories = async () => {
     try {
@@ -68,6 +67,25 @@ export default function NewsDisplay({
       loadCategories();
     }
   }, [showFilters]);
+
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== '') {
+        setCurrentPage(1);
+        loadData();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, loadData]);
+
+  // Load data when other filters change
+  useEffect(() => {
+    if (searchQuery === '') {
+      loadData();
+    }
+  }, [selectedCategory, selectedTimePeriod, currentPage, limit, loadData, searchQuery]);
 
   const getCategoryName = (categoryId?: string) => {
     if (!categoryId) return 'Uncategorized';
@@ -91,6 +109,15 @@ export default function NewsDisplay({
 
   const totalPages = Math.ceil(totalPosts / limit);
 
+  const resetFilters = () => {
+    setSelectedCategory('all');
+    setSelectedTimePeriod('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = selectedCategory !== 'all' || selectedTimePeriod !== 'all' || searchQuery.trim() !== '';
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -101,27 +128,140 @@ export default function NewsDisplay({
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
+      {/* Enhanced Filters */}
       {showFilters && (
-        <div className="flex gap-4 items-center">
-          <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#359d49]"
-          >
-            <option value="all">All Categories</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.name}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <span className="text-sm text-gray-600">
-            {posts.length} post{posts.length !== 1 ? 's' : ''}
-          </span>
+        <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search news posts..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Filter Controls */}
+          <div className="flex flex-wrap gap-4 items-center">
+            {/* Category Filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+            >
+              <option value="all">All Categories</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.name}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Time Period Filter */}
+            <select
+              value={selectedTimePeriod}
+              onChange={(e) => {
+                setSelectedTimePeriod(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#359d49] focus:border-[#359d49]"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="quarter">Last 3 Months</option>
+              <option value="year">This Year</option>
+            </select>
+
+            {/* Reset Filters Button */}
+            {hasActiveFilters && (
+              <Button
+                onClick={resetFilters}
+                variant="outline"
+                className="text-gray-600 border-gray-300 hover:bg-gray-50"
+              >
+                Clear Filters
+              </Button>
+            )}
+
+            {/* Results Count */}
+            <span className="text-sm text-gray-600 ml-auto">
+              {posts.length} post{posts.length !== 1 ? 's' : ''} found
+            </span>
+          </div>
+
+          {/* Active Filter Tags */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-sm text-gray-600">Active filters:</span>
+              {selectedCategory !== 'all' && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Category: {selectedCategory}
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className="ml-1 hover:bg-blue-200 rounded-full p-0.5"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+              {selectedTimePeriod !== 'all' && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Time: {selectedTimePeriod === 'today' ? 'Today' : 
+                         selectedTimePeriod === 'week' ? 'This Week' :
+                         selectedTimePeriod === 'month' ? 'This Month' :
+                         selectedTimePeriod === 'quarter' ? 'Last 3 Months' :
+                         selectedTimePeriod === 'year' ? 'This Year' : selectedTimePeriod}
+                  <button
+                    onClick={() => setSelectedTimePeriod('all')}
+                    className="ml-1 hover:bg-green-200 rounded-full p-0.5"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+              {searchQuery && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  Search: &ldquo;{searchQuery}&rdquo;
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="ml-1 hover:bg-purple-200 rounded-full p-0.5"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -132,17 +272,25 @@ export default function NewsDisplay({
         ))}
       </div>
 
-      {/* Empty State */}
+      {/* Enhanced Empty State */}
       {posts.length === 0 && !loading && (
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📰</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No news posts found</h3>
           <p className="text-gray-600">
-            {selectedCategory !== 'all' 
-              ? `No posts in the "${selectedCategory}" category yet.`
+            {hasActiveFilters 
+              ? `No posts match your current filters. Try adjusting your search criteria or clearing filters.`
               : 'No news posts have been published yet.'
             }
           </p>
+          {hasActiveFilters && (
+            <Button
+              onClick={resetFilters}
+              className="mt-4 bg-[#359d49] hover:bg-[#2a6b39] text-white"
+            >
+              Clear All Filters
+            </Button>
+          )}
         </div>
       )}
 

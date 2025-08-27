@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const featured = searchParams.get('featured');
+    const timePeriod = searchParams.get('timePeriod');
+    const searchQuery = searchParams.get('search');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -39,6 +41,39 @@ export async function GET(request: NextRequest) {
 
     if (featured === 'true') {
       query = query.eq('featured', true);
+    }
+
+    // Time period filtering
+    if (timePeriod) {
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (timePeriod) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+          break;
+        case 'quarter':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+          break;
+        default:
+          startDate = new Date(0); // Beginning of time
+      }
+      
+      query = query.gte('created_at', startDate.toISOString());
+    }
+
+    // Search functionality
+    if (searchQuery) {
+      query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%,excerpt.ilike.%${searchQuery}%`);
     }
 
     const { data: posts, error } = await query

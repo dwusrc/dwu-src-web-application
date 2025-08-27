@@ -33,12 +33,16 @@ export const newsPostsApi = {
   async getPosts(params?: {
     category?: string;
     featured?: boolean;
+    timePeriod?: string;
+    search?: string;
     limit?: number;
     offset?: number;
   }): Promise<NewsPost[]> {
     const searchParams = new URLSearchParams();
     if (params?.category) searchParams.append('category', params.category);
     if (params?.featured !== undefined) searchParams.append('featured', params.featured.toString());
+    if (params?.timePeriod) searchParams.append('timePeriod', params.timePeriod);
+    if (params?.search) searchParams.append('search', params.search);
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.offset) searchParams.append('offset', params.offset.toString());
 
