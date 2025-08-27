@@ -205,7 +205,7 @@ export default function NewsManagement() {
                           </div>
                         )}
                         <div className="text-xs text-gray-500 md:hidden">
-                          Category: {getCategoryName(post.category_id)} • Views: {post.view_count || 0}
+                          Category: {getCategoryName(post.category_id)}
                         </div>
                       </div>
                     </div>
@@ -223,9 +223,7 @@ export default function NewsManagement() {
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="hidden lg:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
-                    {post.view_count || 0}
-                  </td>
+
                   <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                     {new Date(post.created_at).toLocaleDateString()}
                   </td>

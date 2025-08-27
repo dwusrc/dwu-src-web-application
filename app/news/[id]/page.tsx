@@ -165,7 +165,6 @@ export default function NewsDetailPage() {
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <div className="flex items-center space-x-4">
-                    <span>{post.view_count || 0} views</span>
                     {post.allow_comments && (
                       <span>Comments enabled</span>
                     )}

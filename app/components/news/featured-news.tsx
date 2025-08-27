@@ -172,21 +172,18 @@ function FeaturedNewsCard({ post, isMain, formatDate }: FeaturedNewsCardProps) {
         )}
 
         {/* Meta */}
-        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-          <span>{post.view_count || 0} views</span>
-          {post.tags && post.tags.length > 0 && (
-            <div className="flex gap-1">
-              {post.tags.slice(0, 2).map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex gap-1 mb-4">
+            {post.tags.slice(0, 2).map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Read More Button */}
         <Button
