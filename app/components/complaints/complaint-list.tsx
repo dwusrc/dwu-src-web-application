@@ -13,6 +13,7 @@ interface ComplaintListProps {
   onPageChange: (page: number) => void;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  showStudentColumn?: boolean; // New prop to control student column visibility
 }
 
 export default function ComplaintList({
@@ -23,7 +24,8 @@ export default function ComplaintList({
   totalCount,
   onPageChange,
   sortBy,
-  sortOrder
+  sortOrder,
+  showStudentColumn = false
 }: ComplaintListProps) {
   const [filters, setFilters] = useState({
     status: '',
@@ -821,6 +823,11 @@ export default function ComplaintList({
               <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Title
               </th>
+              {showStudentColumn && (
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Student
+                </th>
+              )}
               <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Category
               </th>
@@ -851,7 +858,7 @@ export default function ComplaintList({
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedComplaints.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={showStudentColumn ? 9 : 8} className="px-6 py-4 text-center text-gray-500">
                   {noComplaintsMessage}
                 </td>
               </tr>
@@ -887,6 +894,20 @@ export default function ComplaintList({
                       {debouncedSearchQuery ? highlightText(complaint.description.substring(0, 60) + '...', debouncedSearchQuery) : complaint.description.substring(0, 60) + '...'}
                     </div>
                   </td>
+                  {showStudentColumn && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {complaint.student?.full_name || 'Unknown Student'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {complaint.student?.student_id && `ID: ${complaint.student.student_id}`}
+                        {complaint.student?.department && complaint.student?.student_id && ' • '}
+                        {complaint.student?.department && `${complaint.student.department}`}
+                        {complaint.student?.year_level && complaint.student?.department && ' • '}
+                        {complaint.student?.year_level && `Year ${complaint.student.year_level}`}
+                      </div>
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-sm">
                       {CATEGORY_LABELS[complaint.category]}

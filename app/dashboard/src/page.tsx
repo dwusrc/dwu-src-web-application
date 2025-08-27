@@ -420,10 +420,10 @@ export default function SRCDashboard() {
               <div className="flex space-x-1 min-w-max px-2 sm:px-4">
                 {[
                   { id: 'overview', name: 'Overview', icon: '📊', shortName: 'Overview' },
+                  { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
                   { id: 'complaints', name: 'Complaints', icon: '⚠️', shortName: 'Complaints' },
                   { id: 'src-projects', name: 'SRC Projects', icon: '🚀', shortName: 'Projects' },
                   { id: 'reports', name: 'Reports', icon: '📄', shortName: 'Reports' },
-                  { id: 'news', name: 'News & Announcements', icon: '📢', shortName: 'News' },
                 ].map((tab: { id: string; name: string; icon: string; shortName: string; href?: string }) => (
                   <button
                     key={tab.id}
@@ -614,6 +614,7 @@ export default function SRCDashboard() {
                 onPageChange={setCurrentPage}
                 sortBy="created_at"
                 sortOrder="desc"
+                showStudentColumn={true}
               />
             </div>
           )}
