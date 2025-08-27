@@ -35,8 +35,26 @@ export async function GET(request: NextRequest) {
       .eq('status', 'published')
       .order('created_at', { ascending: false });
 
-    if (category) {
-      query = query.eq('category.name', category);
+    if (category && category !== 'all') {
+      // First get the category ID for the given name
+      console.log('Filtering by category:', category);
+      
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('news_categories')
+        .select('id')
+        .eq('name', category)
+        .eq('is_active', true)
+        .single();
+      
+      if (categoryError) {
+        console.error('Error fetching category:', categoryError);
+        return NextResponse.json({ error: 'Category not found' }, { status: 400 });
+      }
+      
+      if (categoryData) {
+        console.log('Found category ID:', categoryData.id);
+        query = query.eq('category_id', categoryData.id);
+      }
     }
 
     if (featured === 'true') {
