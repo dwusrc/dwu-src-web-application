@@ -16,6 +16,8 @@ export default function NewsManagement() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<NewsPost | null>(null);
   const [filter, setFilter] = useState('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<NewsPost | null>(null);
 
   useEffect(() => {
     loadData();
@@ -68,14 +70,19 @@ export default function NewsManagement() {
   };
 
   const handleDeletePost = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
-    
     try {
       await newsPostsApi.deletePost(id);
       setPosts(prev => prev.filter(post => post.id !== id));
+      setShowDeleteModal(false);
+      setPostToDelete(null);
     } catch {
       alert('Failed to delete post');
     }
+  };
+
+  const confirmDelete = (post: NewsPost) => {
+    setPostToDelete(post);
+    setShowDeleteModal(true);
   };
 
   const filteredPosts = posts.filter(post => {
@@ -168,9 +175,6 @@ export default function NewsManagement() {
                 <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Featured
                 </th>
-                <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Views
-                </th>
                 <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
@@ -222,7 +226,6 @@ export default function NewsManagement() {
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
-
                   <td className="hidden md:table-cell px-3 sm:px-6 py-4 text-sm text-gray-900">
                     {new Date(post.created_at).toLocaleDateString()}
                   </td>
@@ -239,7 +242,7 @@ export default function NewsManagement() {
                         Edit
                       </Button>
                       <Button
-                        onClick={() => handleDeletePost(post.id)}
+                        onClick={() => confirmDelete(post)}
                         size="sm"
                         className="bg-red-600 hover:bg-red-700 text-white"
                       >
@@ -271,6 +274,18 @@ export default function NewsManagement() {
           onClose={() => {
             setShowEditModal(false);
             setSelectedPost(null);
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && postToDelete && (
+        <DeleteConfirmationModal
+          post={postToDelete}
+          onConfirm={() => handleDeletePost(postToDelete.id)}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setPostToDelete(null);
           }}
         />
       )}
@@ -483,6 +498,59 @@ function NewsPostModal({ categories, post, onSubmit, onClose }: NewsPostModalPro
             </Button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Delete Confirmation Modal Component
+interface DeleteConfirmationModalProps {
+  post: NewsPost;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function DeleteConfirmationModal({ post, onConfirm, onCancel }: DeleteConfirmationModalProps) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+        {/* Warning Icon */}
+        <div className="flex items-center justify-center mb-4">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Warning Message */}
+        <div className="text-center mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Delete News Post
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Are you sure you want to delete <strong>&ldquo;{post.title}&rdquo;</strong>?
+          </p>
+          <p className="text-sm text-red-600 font-medium">
+            This action cannot be undone. The post will be permanently removed.
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 justify-center">
+          <Button
+            onClick={onCancel}
+            className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            className="bg-red-600 hover:bg-red-700 text-white px-6"
+          >
+            Yes, Delete Post
+          </Button>
+        </div>
       </div>
     </div>
   );
