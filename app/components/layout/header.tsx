@@ -156,11 +156,11 @@ export function Header({ className }: HeaderProps) {
                 Overview
               </Link>
               <Link
-                href="/about/departments"
+                href="/about/committees"
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:underline underline-offset-2 transition-all duration-200"
                 onClick={() => setShowAboutMenu(false)}
               >
-                Departments
+                Committees
               </Link>
               <Link
                 href="/about/leadership"
@@ -346,11 +346,11 @@ export function Header({ className }: HeaderProps) {
                   Overview
                 </Link>
                 <Link
-                  href="/about/departments"
+                  href="/about/committees"
                   className="block text-gray-700 hover:text-[#359d49] hover:underline underline-offset-2 transition-all duration-200"
                   onClick={closeMobileMenu}
                 >
-                  Departments
+                  Committees
                 </Link>
                 <Link
                   href="/about/leadership"
