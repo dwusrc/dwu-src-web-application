@@ -5,15 +5,22 @@ import FeaturedNews from '@/app/components/news/featured-news';
 export default function NewsPage() {
   return (
     <PageLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="space-y-8">
-          {/* Page Header */}
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">DWU SRC News & Announcements</h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Stay updated with the latest news, announcements, and important information from the Student Representative Council.
-            </p>
-          </div>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-[#359d49] to-[#2a6b39] py-16 px-6 md:px-16">
+        <div className="max-w-6xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            DWU SRC News & Announcements
+          </h1>
+          <p className="text-xl text-white/90 max-w-3xl mx-auto">
+            Stay updated with the latest news, announcements, and important information from the Student Representative Council.
+          </p>
+        </div>
+      </section>
+
+      {/* News Content */}
+      <section className="py-16 px-6 md:px-16 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="space-y-8">
 
           {/* Featured News Section */}
           <FeaturedNews limit={3} showViewAll={false} />
@@ -27,6 +34,7 @@ export default function NewsPage() {
           </div>
         </div>
       </div>
+      </section>
     </PageLayout>
   );
 } 
